@@ -101,14 +101,20 @@ def save_synopsis(directory_path, synopsis):
         return
 
     file_path = os.path.join(directory_path, "repo_synopsis.md")
+    print(f"Attempting to save synopsis to: {file_path}") # Check Path Value in console
+
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(synopsis)
-        st.write(f"Synopsis saved to {file_path}")
+        st.success(f"Synopsis saved successfully to {file_path}")  # Success message
         log_event(directory_path, f"Synopsis saved to {file_path}")
+        print("File saved successfully.") # Check for successful execution
     except Exception as e:
-        st.write(f"Error saving synopsis: {e}")
+        st.error(f"Error saving synopsis: {e}")  # More detailed error
         log_event(directory_path, f"Error saving synopsis: {e}")
+        print(f"Error during file save: {e}")   # Print the error to the console
+
+    print("save_synopsis function completed")  # Confirm function completion
 
 def generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider):
     st.write(f"Generating synopsis for: {directory_path}")
@@ -117,49 +123,56 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
         st.write("Please enter a directory path.")
         return
 
+    # ADD THIS CHECK:
+    if not os.path.isdir(directory_path):
+        st.error(f"Error: The specified directory does not exist: {directory_path}")
+        return
+
     items = traverse_directory(directory_path)
+    if not items:
+        return  # Exit if directory access failed
+
     st.write(f"Found {len(items)} items in the directory.")
 
     synopsis = ""
     languages = set()
 
     if include_tree:
-        synopsis += "## Directory Tree\\n"
-        synopsis += generate_directory_tree(directory_path).replace('\\\\n', '\\n') + "\\n"
+        synopsis += "## Directory Tree\n"
+        synopsis += generate_directory_tree(directory_path).replace('\\\\n', '\\n') + "\n"
 
     if include_descriptions or include_token_count or include_use_cases:
-        synopsis += "## Item Details\\n"
+        synopsis += "## Item Details\n"
         for item_path in items:
             if os.path.isfile(item_path):
                 language = get_file_language(item_path)
                 languages.add(language)
+                synopsis += f"- **File:** {item_path}, **Language:** {language}\n" # Enhanced formatting
                 if include_token_count and language != "Unknown":
                     try:
                         with open(item_path, "r", encoding="utf-8") as f:
                             content = f.read()
                             token_count = len(content.split())
-                            synopsis += f"- File: {item_path}, Language: {language}, Token Count: {token_count}\\n"
+                            synopsis += f"  - **Token Count:** {token_count}\n" # Indented and bold
                     except Exception as e:
-                        synopsis += f"- Error reading file {item_path}: {e}\\n"
-                elif include_descriptions:
-                    synopsis += f"- File: {item_path}, Language: {language}\\n"
+                        synopsis += f"  - **Error reading file {item_path}:** {e}\n" # Error message formatting
                 if include_descriptions or include_use_cases:
                     description, use_case = get_llm_response(item_path, llm_provider)
                     if include_descriptions:
-                        synopsis += f"  - Description: {description}\\n"
+                        synopsis += f"  - **Description:** {description}\n" # Indented and bold
                     if include_use_cases:
-                        synopsis += f"  - Use Case: {use_case}\\n"
+                        synopsis += f"  - **Use Case:** {use_case}\n" # Indented and bold
             elif include_descriptions:
-                synopsis += f"- Directory: {item_path}\\n"
+                synopsis += f"- **Directory:** {item_path}\n" # Enhanced formatting
                 if include_descriptions or include_use_cases:
                     description, use_case = get_llm_response(item_path, llm_provider)
                     if include_descriptions:
-                        synopsis += f"  - Description: {description}\\n"
+                        synopsis += f"  - **Description:** {description}\n" # Indented and bold
                     if include_use_cases:
-                        synopsis += f"  - Use Case: {use_case}\\n"
+                        synopsis += f"  - **Use Case:** {use_case}\n" # Indented and bold
 
     if languages:
-        synopsis = f"Languages used: {', '.join(languages)}\\n\\n" + synopsis
+        synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
 
     st.subheader("Synopsis Preview")
     synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
