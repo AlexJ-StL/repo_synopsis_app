@@ -18,6 +18,7 @@ llm_provider = st.selectbox(
 
 directory_path = st.text_input("Enter directory path:")
 
+
 def traverse_directory(directory_path):
     items = []
     for item in os.listdir(directory_path):
@@ -27,6 +28,7 @@ def traverse_directory(directory_path):
             items.extend(traverse_directory(item_path))
     return items
 
+
 def generate_directory_tree(directory_path, indent=""):
     tree = ""
     for item in os.listdir(directory_path):
@@ -35,6 +37,7 @@ def generate_directory_tree(directory_path, indent=""):
         if os.path.isdir(item_path):
             tree += generate_directory_tree(item_path, indent + "  ")
     return tree
+
 
 def get_file_language(file_path):
     extension = os.path.splitext(file_path)[1].lower()
@@ -67,6 +70,7 @@ def get_file_language(file_path):
     else:
         return "Unknown"
 
+
 def get_llm_response(item_path, llm_provider):
     # Placeholder for LLM integration
     if llm_provider == "Groq":
@@ -86,14 +90,20 @@ def get_llm_response(item_path, llm_provider):
         use_case = "Default use case placeholder"
     return description, use_case
 
+
 def log_event(directory_path, message):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file_path = os.path.join(directory_path, "event_log.txt") if directory_path else "event_log.txt"
+    log_file_path = (
+        os.path.join(directory_path, "event_log.txt")
+        if directory_path
+        else "event_log.txt"
+    )
     try:
         with open(log_file_path, "a") as f:
             f.write(f"{timestamp} - {message}\\n")
     except Exception as e:
         st.write(f"Error writing to log file: {e}")
+
 
 def save_synopsis(directory_path, synopsis):
     if not directory_path:
@@ -101,22 +111,33 @@ def save_synopsis(directory_path, synopsis):
         return
 
     file_path = os.path.join(directory_path, "repo_synopsis.md")
-    print(f"Attempting to save synopsis to: {file_path}") # Check Path Value in console
+    print(f"Attempting to save synopsis to: {
+        file_path
+    }")
+    # Check Path Value in console
 
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(synopsis)
         st.write(f"Synopsis saved to {file_path}")
         log_event(directory_path, f"Synopsis saved to {file_path}")
-        print("File saved successfully.") # Check for successful execution
+        print("File saved successfully.")  # Check for successful execution
     except Exception as e:
         st.write(f"Error saving synopsis: {e}")
         log_event(directory_path, f"Error saving synopsis: {e}")
-        print(f"Error during file save: {e}")   # Print the error to the console
+        print(f"Error during file save: {e}")  # Print the error to the console
 
-    print("save_synopsis has completed execution") # Add log statement
+    print("save_synopsis has completed execution")  # Add log statement
 
-def generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider):
+
+def generate_synopsis(
+    directory_path,
+    include_tree,
+    include_descriptions,
+    include_token_count,
+    include_use_cases,
+    llm_provider
+):
     st.write(f"Generating synopsis for: {directory_path}")
 
     if not directory_path:
@@ -125,7 +146,9 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
 
     # ADD THIS CHECK:
     if not os.path.isdir(directory_path):
-        st.error(f"Error: The specified directory does not exist: {directory_path}")
+        st.error(f"Error: The specified directory does not exist: {
+            directory_path
+        }")
         return
 
     items = traverse_directory(directory_path)
@@ -139,7 +162,9 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
 
     if include_tree:
         synopsis += "## Directory Tree\n"
-        synopsis += generate_directory_tree(directory_path).replace('\\\\n', '\\n') + "\n"
+        synopsis += generate_directory_tree(
+            directory_path
+        ).replace('\\\\n', '\\n') + "\n"
 
     if include_descriptions or include_token_count or include_use_cases:
         synopsis += "## Item Details\n"
@@ -147,29 +172,49 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
             if os.path.isfile(item_path):
                 language = get_file_language(item_path)
                 languages.add(language)
-                synopsis += f"- **File:** {item_path}, **Language:** {language}\n" # Enhanced formatting
+                synopsis += f"- **File:** {item_path}, **Language:** {
+                    language
+                }\n"
+                # Enhanced formatting
                 if include_token_count and language != "Unknown":
                     try:
                         with open(item_path, "r", encoding="utf-8") as f:
                             content = f.read()
                             token_count = len(content.split())
-                            synopsis += f"  - **Token Count:** {token_count}\n" # Indented and bold
+                            synopsis += f"  - **Token Count:** {
+                                token_count
+                            }\n"
+                            # Indented and bold
                     except Exception as e:
-                        synopsis += f"  - **Error reading file {item_path}:** {e}\n" # Error message formatting
+                        synopsis += f"  - **Error reading file {
+                            item_path
+                        }:** {e}\n"
+                        # Error message formatting
                 if include_descriptions or include_use_cases:
-                    description, use_case = get_llm_response(item_path, llm_provider)
+                    description, use_case = get_llm_response(
+                        item_path,
+                        llm_provider
+                    )
                     if include_descriptions:
-                        synopsis += f"  - **Description:** {description}\n" # Indented and bold
+                        synopsis += f"  - **Description:** {description}\n"
+                        # Indented and bold
                     if include_use_cases:
-                        synopsis += f"  - **Use Case:** {use_case}\n" # Indented and bold
+                        synopsis += f"  - **Use Case:** {use_case}\n"
+                        # Indented and bold
             elif include_descriptions:
-                synopsis += f"- **Directory:** {item_path}\n" # Enhanced formatting
+                synopsis += f"- **Directory:** {item_path}\n"
+                # Enhanced formatting
                 if include_descriptions or include_use_cases:
-                    description, use_case = get_llm_response(item_path, llm_provider)
+                    description, use_case = get_llm_response(
+                        item_path,
+                        llm_provider
+                    )
                     if include_descriptions:
-                        synopsis += f"  - **Description:** {description}\n" # Indented and bold
+                        synopsis += f"  - **Description:** {description}\n"
+                        # Indented and bold
                     if include_use_cases:
-                        synopsis += f"  - **Use Case:** {use_case}\n" # Indented and bold
+                        synopsis += f"  - **Use Case:** {use_case}\n"
+                        # Indented and bold
 
     if languages:
         synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
@@ -181,14 +226,33 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
     if st.button("Save Synopsis"):
         save_synopsis(directory_path, synopsis_review)
 
-    # Removing this button as it was causing the function to be called twice and the synopsis to be generated twice
+    # Removing this button as it was causing the function
+    # to be called twice and the synopsis to be generated twice
     # with st.spinner("Generating synopsis..."):
     #     if st.button("Generate Synopsis"):
-    #         generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+    #         generate_synopsis(
+    #           directory_path,
+    #           include_tree,
+    #           include_descriptions,
+    #           include_token_count,
+    #           include_use_cases,
+    #           llm_provider
+    #       )
+
 
 if st.button("Proceed"):
     def generate_synopsis_wrapper():
-        directory_path_value = directory_path.strip().replace("\\", "\\\\")  # ADD .replace()
+        directory_path_value = directory_path.strip().replace(
+            "\\",
+            "\\\\"
+            )  # ADD .replace()
         print(f"Directory Path Value: {directory_path_value}")
-        generate_synopsis(directory_path_value, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+        generate_synopsis(
+            directory_path_value,
+            include_tree,
+            include_descriptions,
+            include_token_count,
+            include_use_cases,
+            llm_provider
+        )
     generate_synopsis_wrapper()
