@@ -4,21 +4,25 @@ import datetime
 
 st.title("Repo Synopsis Generator")
 
-def generate_synopsis_wrapper():
-    generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+st.subheader("Synopsis Options")
+include_tree = st.checkbox("Directory Tree", value=True)
+include_descriptions = st.checkbox("Descriptions", value=True)
+include_token_count = st.checkbox("Token Count", value=True)
+include_use_cases = st.checkbox("Use Cases", value=True)
 
-directory_path = st.text_input("Enter directory path:", on_change=generate_synopsis_wrapper)
-
+# API keys should be stored in the user's environmental variables
 llm_provider = st.selectbox(
     "Select LLM API Provider",
     ("Groq", "Cerberas", "SombaNova", "Gemini"),
 )
 
-st.subheader("Synopsis Options")
-include_tree = st.checkbox("Directory Tree")
-include_descriptions = st.checkbox("Descriptions")
-include_token_count = st.checkbox("Token Count")
-include_use_cases = st.checkbox("Use Cases")
+directory_path = st.text_input("Enter directory path:")
+
+if st.button("Proceed"):
+    def generate_synopsis_wrapper():
+        directory_path_value = directory_path.strip()
+        generate_synopsis(directory_path_value, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+    generate_synopsis_wrapper()
 
 def traverse_directory(directory_path):
     items = []
