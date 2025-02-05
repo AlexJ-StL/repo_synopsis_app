@@ -175,6 +175,7 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
 
 if st.button("Proceed"):
     def generate_synopsis_wrapper():
-        directory_path_value = directory_path.strip()
+        directory_path_value = directory_path.strip().replace("\\", "\\\\")  # ADD .replace()
+        print(f"Directory Path Value: {directory_path_value}")
         generate_synopsis(directory_path_value, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
     generate_synopsis_wrapper()
