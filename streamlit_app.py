@@ -18,12 +18,6 @@ llm_provider = st.selectbox(
 
 directory_path = st.text_input("Enter directory path:")
 
-if st.button("Proceed"):
-    def generate_synopsis_wrapper():
-        directory_path_value = directory_path.strip()
-        generate_synopsis(directory_path_value, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
-    generate_synopsis_wrapper()
-
 def traverse_directory(directory_path):
     items = []
     for item in os.listdir(directory_path):
@@ -174,6 +168,13 @@ def generate_synopsis(directory_path, include_tree, include_descriptions, includ
     if st.button("Save Synopsis"):
         save_synopsis(directory_path, synopsis_review)
 
-    with st.spinner("Generating synopsis..."):
-        if st.button("Generate Synopsis"):
-            generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+    # Removing this button as it was causing the function to be called twice and the synopsis to be generated twice
+    # with st.spinner("Generating synopsis..."):
+    #     if st.button("Generate Synopsis"):
+    #         generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+
+if st.button("Proceed"):
+    def generate_synopsis_wrapper():
+        directory_path_value = directory_path.strip()
+        generate_synopsis(directory_path_value, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider)
+    generate_synopsis_wrapper()
