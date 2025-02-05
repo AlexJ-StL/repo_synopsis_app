@@ -101,20 +101,16 @@ def save_synopsis(directory_path, synopsis):
         return
 
     file_path = os.path.join(directory_path, "repo_synopsis.md")
-    print(f"Attempting to save synopsis to: {file_path}") # Check Path Value in console
-
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(synopsis)
-        st.success(f"Synopsis saved successfully to {file_path}")  # Success message
+        st.write(f"Synopsis saved to {file_path}")
         log_event(directory_path, f"Synopsis saved to {file_path}")
-        print("File saved successfully.") # Check for successful execution
     except Exception as e:
-        st.error(f"Error saving synopsis: {e}")  # More detailed error
+        st.write(f"Error saving synopsis: {e}")
         log_event(directory_path, f"Error saving synopsis: {e}")
-        print(f"Error during file save: {e}")   # Print the error to the console
 
-    print("save_synopsis function completed")  # Confirm function completion
+    print("save_synopsis has completed execution") # Add log statement
 
 def generate_synopsis(directory_path, include_tree, include_descriptions, include_token_count, include_use_cases, llm_provider):
     st.write(f"Generating synopsis for: {directory_path}")
