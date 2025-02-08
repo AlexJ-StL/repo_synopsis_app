@@ -19,11 +19,23 @@ This application is a Streamlit-based tool. (Replace with a more specific descri
 ├── README.md
 ├── requirements.txt
 ├── src/
+│   ├── repo_synopsis.egg-info/
+│   │   ├── dependency_links.txt
+│   │   ├── PKG-INFO
+│   │   ├── requires.txt
+│   │   ├── SOURCES.txt
+│   │   └── top_level.txt
 │   ├── streamlit_app/
 │   │   ├── __init__.py
+│   │   ├── __pycache__/
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   └── streamlit_app.cpython-313.pyc
 │   │   └── streamlit_app.py
 │   └── test_app/
 │       ├── __init__.py
+│       ├── __pycache__/
+│       │   ├── __init__.cpython-313.pyc
+│       │   └── test_app.cpython-313-pytest-8.3.4.pyc
 │       └── test_app.py
 └── uv.lock
 ```
