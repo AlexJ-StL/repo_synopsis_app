@@ -15,9 +15,17 @@ This application is a Streamlit-based tool. (Replace with a more specific descri
 
 ```
 .
+├── pyproject.toml
 ├── README.md
 ├── requirements.txt
-└── your_app.py (replace with your actual script name)
+├── src/
+│   ├── streamlit_app/
+│   │   ├── __init__.py
+│   │   └── streamlit_app.py
+│   └── test_app/
+│       ├── __init__.py
+│       └── test_app.py
+└── uv.lock
 ```
 
 ## Changelog

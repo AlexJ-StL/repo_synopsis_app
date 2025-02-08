@@ -1,8 +1,0 @@
-README.md
-pyproject.toml
-streamlit_app.py
-repo_synopsis.egg-info/PKG-INFO
-repo_synopsis.egg-info/SOURCES.txt
-repo_synopsis.egg-info/dependency_links.txt
-repo_synopsis.egg-info/requires.txt
-repo_synopsis.egg-info/top_level.txt
