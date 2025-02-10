@@ -12,24 +12,29 @@ Description-Content-Type: text/markdown
 Requires-Dist: streamlit
 Requires-Dist: pytest
 Requires-Dist: shutils
+Requires-Dist: pytest-cov>=6.0.0
 
 # Streamlit Application
 
 ## Description
 
-This application is a Streamlit-based tool that utilizes an LLM to review and produces a summary of the contents of a repository.
+This application is a Streamlit-based tool. (Replace with a more specific description of what your application does).
 
 ## Usage Instructions
 
 1.  Clone this repository.
 2.  Navigate to the project directory.
 3.  Install dependencies using uv: `uv pip install -r requirements.txt`
-4.  Run the application: `streamlit run streamlit_app.py`
+4.  Run the application: `streamlit run your_app.py` (replace `your_app.py` with the name of your main script).
 
 ## Directory Tree
 
 ```
 .
+├── __init__.py
+├── __pycache__/
+│   └── __init__.cpython-313.pyc
+├── event_log.txt
 ├── pyproject.toml
 ├── README.md
 ├── requirements.txt
@@ -47,7 +52,6 @@ This application is a Streamlit-based tool that utilizes an LLM to review and pr
 │   │   │   └── streamlit_app.cpython-313.pyc
 │   │   └── streamlit_app.py
 │   └── test_app/
-│       ├── __init__.py
 │       ├── __pycache__/
 │       │   ├── __init__.cpython-313.pyc
 │       │   └── test_app.cpython-313-pytest-8.3.4.pyc
@@ -84,11 +88,10 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
 
 Here are the *SEARCH/REPLACE* blocks to create the `requirements.txt` file:
 
-<<<<<<< SEARCH
-```text
 requirements.txt
-```
->>>>>>> REPLACE
+```text
+<<<<<<< SEARCH

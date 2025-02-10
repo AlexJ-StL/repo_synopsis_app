@@ -15,6 +15,10 @@ This application is a Streamlit-based tool. (Replace with a more specific descri
 
 ```
 .
+├── __init__.py
+├── __pycache__/
+│   └── __init__.cpython-313.pyc
+├── event_log.txt
 ├── pyproject.toml
 ├── README.md
 ├── requirements.txt
@@ -32,7 +36,6 @@ This application is a Streamlit-based tool. (Replace with a more specific descri
 │   │   │   └── streamlit_app.cpython-313.pyc
 │   │   └── streamlit_app.py
 │   └── test_app/
-│       ├── __init__.py
 │       ├── __pycache__/
 │       │   ├── __init__.cpython-313.pyc
 │       │   └── test_app.cpython-313-pytest-8.3.4.pyc

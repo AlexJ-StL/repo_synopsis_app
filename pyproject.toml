@@ -3,7 +3,12 @@
 [project]
 name = "repo_synopsis"
 version = "0.1.0"
-dependencies = ["streamlit", "pytest", "shutils"]
+dependencies = [
+    "streamlit",
+    "pytest",
+    "shutils",
+    "pytest-cov>=6.0.0",
+]
 requires-python = ">= 3.13.0"
 authors = [ {name = "Alex Jensen", email = "thanotosq@gmail.com"}, ]
 description = "Application that uses an LLM to index the contents of a repository and generate a synopsis."
