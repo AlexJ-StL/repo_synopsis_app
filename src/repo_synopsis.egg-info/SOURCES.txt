@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/repo_synopsis.egg-info/PKG-INFO
+src/repo_synopsis.egg-info/SOURCES.txt
+src/repo_synopsis.egg-info/dependency_links.txt
+src/repo_synopsis.egg-info/requires.txt
+src/repo_synopsis.egg-info/top_level.txt
+src/streamlit_app/__init__.py
+src/streamlit_app/streamlit_app.py
+src/test_app/__init__.py
+src/test_app/test_app.py
