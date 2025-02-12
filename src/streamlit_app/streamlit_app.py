@@ -105,10 +105,47 @@ def log_event(directory_path, message):
         st.write(f"Error writing to log file: {e}")
 
 
-def save_synopsis(directory_path, synopsis):
-    if not directory_path:
-        st.write("Please enter a directory path to save the synopsis.")
+import streamlit as st
+import os
+
+def save_synopsis(directory_path, synopsis, custom_save_directory=None):
+    """
+    Saves the generated synopsis to a markdown file in the specified directory.
+
+    Args:
+        directory_path (str): The path to the directory where the synopsis was generated from.
+        synopsis (str): The synopsis content to be saved.
+        custom_save_directory (str, optional): The path to a custom directory where the synopsis should be saved. Defaults to None.
+    """
+    if custom_save_directory:
+        save_directory = custom_save_directory
+    else:
+        save_directory = directory_path
+
+    if not save_directory:
+        st.error("Please enter a directory path to save the synopsis.")
         return
+
+    try:
+        # Ensure the directory exists
+        os.makedirs(save_directory, exist_ok=True)
+
+        # Normalize the file path
+        file_path = os.path.join(save_directory, "repo_synopsis.md")
+        file_path = os.path.normpath(file_path)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(synopsis)
+
+        st.success(f"Synopsis saved to {file_path}")
+        log_event(save_directory, f"Synopsis saved to {file_path}")
+
+    except OSError as e:
+        st.error(f"Error creating directory: {e}")
+        log_event(save_directory, f"Error creating directory: {e}")
+    except IOError as e:
+        st.error(f"Error saving synopsis to file: {e}")
+        log_event(save_directory, f"Error saving synopsis to file: {e}")
 
     file_path = os.path.join(directory_path, "repo_synopsis.md")
     print(f"Attempting to save synopsis to: {
@@ -223,8 +260,17 @@ def generate_synopsis(
     synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
     log_event(directory_path, "Synopsis generated")
 
+    save_in_source_directory = st.checkbox("Save in source directory", value=True)
+    if not save_in_source_directory:
+        custom_save_directory = st.text_input("Enter custom save directory:")
+    else:
+        custom_save_directory = None
+
     if st.button("Save Synopsis"):
-        save_synopsis(directory_path, synopsis_review)
+        if save_in_source_directory:
+            save_synopsis(directory_path, synopsis_review)
+        else:
+            save_synopsis(directory_path, synopsis_review, custom_save_directory)
 
     # Removing this button as it was causing the function
     # to be called twice and the synopsis to be generated twice
