@@ -1,11 +1,13 @@
 import pytest
 import shutil  # Import shutil
-from streamlit_app.streamlit_app import (
+import os
+from .src.streamlit_app.streamlit_app import (
     traverse_directory,
     generate_directory_tree,
     get_file_language,
     save_synopsis,
-    generate_synopsis
+    generate_synopsis,
+    get_llm_response
 )
 import streamlit as st
 
@@ -71,12 +73,36 @@ def test_save_synopsis_valid(tmpdir):
     assert saved_file.read() == synopsis_content
 
 
+def test_save_synopsis_empty_directory(tmpdir, monkeypatch):
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    save_synopsis("", "test synopsis")
+
+
+def test_save_synopsis_os_error(tmpdir, monkeypatch):
+    def mock_makedirs(path, exist_ok=False):
+        raise OSError("Mock OSError")
+    monkeypatch.setattr(os, 'makedirs', mock_makedirs)
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    save_synopsis(tmpdir, "test synopsis")
+
+
+def test_save_synopsis_io_error(tmpdir, monkeypatch):
+    def mock_open(*args, **kwargs):
+        raise IOError("Mock IOError")
+    monkeypatch.setattr("builtins.open", mock_open)
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    save_synopsis(tmpdir, "test synopsis")
+
+
 # --- Test generate_synopsis ---
 # More complex, requires setting up a directory and mocking st functions
 def test_generate_synopsis_empty(tmpdir, monkeypatch):
     # Mock st.write and st.error to avoid Streamlit dependencies
-    mock_write = lambda x: None  # noqa: E731
-    mock_error = lambda x: None  # noqa: E731
+    def mock_write(x): return None  # noqa: E731
+    def mock_error(x): return None  # noqa: E731
     monkeypatch.setattr(st, 'write', mock_write)
     monkeypatch.setattr(st, 'error', mock_error)
 
@@ -98,3 +124,25 @@ def cleanup_temp_files(tmpdir):
         shutil.rmtree(tmpdir)  # Use shutil.rmtree to remove directories
     except OSError:
         pass  # Ignore errors if the directory can't be removed
+
+
+def test_get_llm_response():
+    description, use_case = get_llm_response("test.py", "Groq")
+    assert description == "Groq description placeholder"
+    assert use_case == "Groq use case placeholder"
+
+    description, use_case = get_llm_response("test.py", "Cerberas")
+    assert description == "Cerberas description placeholder"
+    assert use_case == "Cerberas use case placeholder"
+
+    description, use_case = get_llm_response("test.py", "SombaNova")
+    assert description == "SombaNova description placeholder"
+    assert use_case == "SombaNova use case placeholder"
+
+    description, use_case = get_llm_response("test.py", "Gemini")
+    assert description == "Gemini description placeholder"
+    assert use_case == "Gemini use case placeholder"
+
+    description, use_case = get_llm_response("test.py", "Invalid")
+    assert description == "Default description placeholder"
+    assert use_case == "Default use case placeholder"

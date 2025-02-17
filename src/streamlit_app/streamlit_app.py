@@ -105,9 +105,6 @@ def log_event(directory_path, message):
         st.write(f"Error writing to log file: {e}")
 
 
-import streamlit as st
-import os
-
 def save_synopsis(directory_path, synopsis, custom_save_directory=None):
     """
     Saves the generated synopsis to a markdown file in the specified directory.
@@ -173,7 +170,7 @@ def generate_synopsis(
     include_descriptions,
     include_token_count,
     include_use_cases,
-    llm_provider
+    llm_provider,
 ):
     st.write(f"Generating synopsis for: {directory_path}")
 
@@ -199,9 +196,10 @@ def generate_synopsis(
 
     if include_tree:
         synopsis += "## Directory Tree\n"
-        synopsis += generate_directory_tree(
-            directory_path
-        ).replace('\\\\n', '\\n') + "\n"
+        synopsis += (
+            generate_directory_tree(directory_path).replace(
+                "\\\\n", "\\n") + "\n"
+        )
 
     if include_descriptions or include_token_count or include_use_cases:
         synopsis += "## Item Details\n"
@@ -229,9 +227,7 @@ def generate_synopsis(
                         # Error message formatting
                 if include_descriptions or include_use_cases:
                     description, use_case = get_llm_response(
-                        item_path,
-                        llm_provider
-                    )
+                        item_path, llm_provider)
                     if include_descriptions:
                         synopsis += f"  - **Description:** {description}\n"
                         # Indented and bold
@@ -243,9 +239,7 @@ def generate_synopsis(
                 # Enhanced formatting
                 if include_descriptions or include_use_cases:
                     description, use_case = get_llm_response(
-                        item_path,
-                        llm_provider
-                    )
+                        item_path, llm_provider)
                     if include_descriptions:
                         synopsis += f"  - **Description:** {description}\n"
                         # Indented and bold
@@ -255,12 +249,12 @@ def generate_synopsis(
 
     if languages:
         synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
-
-    st.subheader("Synopsis Preview")
-    synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
+        st.subheader("Synopsis Preview")
+        synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
     log_event(directory_path, "Synopsis generated")
 
-    save_in_source_directory = st.checkbox("Save in source directory", value=True)
+    save_in_source_directory = st.checkbox(
+        "Save in source directory", value=True)
     if not save_in_source_directory:
         custom_save_directory = st.text_input("Enter custom save directory:")
     else:
@@ -270,7 +264,8 @@ def generate_synopsis(
         if save_in_source_directory:
             save_synopsis(directory_path, synopsis_review)
         else:
-            save_synopsis(directory_path, synopsis_review, custom_save_directory)
+            save_synopsis(directory_path, synopsis_review,
+                          custom_save_directory)
 
     # Removing this button as it was causing the function
     # to be called twice and the synopsis to be generated twice
@@ -287,11 +282,11 @@ def generate_synopsis(
 
 
 if st.button("Proceed"):
+
     def generate_synopsis_wrapper():
         directory_path_value = directory_path.strip().replace(
-            "\\",
-            "\\\\"
-            )  # ADD .replace()
+            "\\", "\\\\"
+        )  # ADD .replace()
         print(f"Directory Path Value: {directory_path_value}")
         generate_synopsis(
             directory_path_value,
@@ -299,6 +294,7 @@ if st.button("Proceed"):
             include_descriptions,
             include_token_count,
             include_use_cases,
-            llm_provider
+            llm_provider,
         )
+
     generate_synopsis_wrapper()
