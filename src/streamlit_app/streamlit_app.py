@@ -202,7 +202,7 @@ def generate_synopsis(
                 language = get_file_language(item_path)
                 languages.add(language)
                 synopsis += f"- **File:** {item_path}, **Language:** {language}\n"
-                
+
                 if include_token_count and language != "Unknown":
                     try:
                         with open(item_path, "r", encoding="utf-8") as f:
@@ -211,14 +211,14 @@ def generate_synopsis(
                             synopsis += f"  - **Token Count:** {token_count}\n"
                     except Exception as e:
                         synopsis += f"  - **Error reading file {item_path}:** {e}\n"
-                
+
                 if include_descriptions or include_use_cases:
                     description, use_case = get_llm_response(item_path, llm_provider)
                     if include_descriptions:
                         synopsis += f"  - **Description:** {description}\n"
                     if include_use_cases:
                         synopsis += f"  - **Use Case:** {use_case}\n"
-            
+
             elif include_descriptions:
                 synopsis += f"- **Directory:** {item_path}\n"
                 if include_descriptions or include_use_cases:
@@ -235,11 +235,11 @@ def generate_synopsis(
     with st.container():
         st.subheader("Synopsis Preview")
         synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
-        
+
         col1, col2 = st.columns(2)
         with col1:
             save_in_source_directory = st.checkbox("Save in source directory", value=True)
-        
+
         custom_save_directory = None
         if not save_in_source_directory:
             with col2:
@@ -251,20 +251,20 @@ def generate_synopsis(
                     save_path = directory_path
                 else:
                     save_path = custom_save_directory if custom_save_directory else directory_path
-                
+
                 # Create the full file path
                 file_path = os.path.join(save_path, "repo_synopsis.md")
-                
+
                 # Ensure the directory exists
                 os.makedirs(save_path, exist_ok=True)
-                
+
                 # Save the file
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(synopsis_review)
-                
+
                 st.success(f"Synopsis saved successfully to: {file_path}")
                 log_event(save_path, f"Synopsis saved to {file_path}")
-                
+
             except Exception as e:
                 st.error(f"Failed to save synopsis: {e}")
                 log_event(directory_path, f"Error saving synopsis: {e}")
