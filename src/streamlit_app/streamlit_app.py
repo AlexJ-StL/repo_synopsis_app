@@ -172,100 +172,126 @@ def generate_synopsis(
     include_use_cases,
     llm_provider,
 ):
+    print(f"DEBUG: Starting generate_synopsis with path: {directory_path}")  # Debug log
     st.write(f"Generating synopsis for: {directory_path}")
 
     if not directory_path:
+        print("DEBUG: No directory path provided")  # Debug log
         st.write("Please enter a directory path.")
         return
 
     if not os.path.isdir(directory_path):
+        print(f"DEBUG: Invalid directory path: {directory_path}")  # Debug log
         st.error(f"Error: The specified directory does not exist: {directory_path}")
         return
 
-    items = traverse_directory(directory_path)
+    try:
+        items = traverse_directory(directory_path)
+        print(f"DEBUG: Found {len(items)} items")  # Debug log
+    except Exception as e:
+        print(f"DEBUG: Error in traverse_directory: {e}")  # Debug log
+        st.error(f"Error accessing directory: {e}")
+        return
+
     if not items:
-        return  # Exit if directory access failed
+        print("DEBUG: No items found in directory")  # Debug log
+        return
 
     st.write(f"Found {len(items)} items in the directory.")
 
     synopsis = ""
     languages = set()
 
-    if include_tree:
-        synopsis += "## Directory Tree\n"
-        synopsis += generate_directory_tree(directory_path).replace("\\\\n", "\\n") + "\n"
+    try:
+        if include_tree:
+            print("DEBUG: Generating directory tree")  # Debug log
+            synopsis += "## Directory Tree\n"
+            tree = generate_directory_tree(directory_path)
+            synopsis += tree.replace("\\\\n", "\\n") + "\n"
 
-    if include_descriptions or include_token_count or include_use_cases:
-        synopsis += "## Item Details\n"
-        for item_path in items:
-            if os.path.isfile(item_path):
-                language = get_file_language(item_path)
-                languages.add(language)
-                synopsis += f"- **File:** {item_path}, **Language:** {language}\n"
+        if include_descriptions or include_token_count or include_use_cases:
+            print("DEBUG: Processing items for details")  # Debug log
+            synopsis += "## Item Details\n"
+            for item_path in items:
+                if os.path.isfile(item_path):
+                    language = get_file_language(item_path)
+                    languages.add(language)
+                    synopsis += f"- **File:** {item_path}, **Language:** {language}\n"
+                    
+                    if include_token_count and language != "Unknown":
+                        try:
+                            with open(item_path, "r", encoding="utf-8") as f:
+                                content = f.read()
+                                token_count = len(content.split())
+                                synopsis += f"  - **Token Count:** {token_count}\n"
+                        except Exception as e:
+                            print(f"DEBUG: Error reading file {item_path}: {e}")  # Debug log
+                            synopsis += f"  - **Error reading file {item_path}:** {e}\n"
+                    
+                    if include_descriptions or include_use_cases:
+                        description, use_case = get_llm_response(item_path, llm_provider)
+                        if include_descriptions:
+                            synopsis += f"  - **Description:** {description}\n"
+                        if include_use_cases:
+                            synopsis += f"  - **Use Case:** {use_case}\n"
+                
+                elif include_descriptions:
+                    synopsis += f"- **Directory:** {item_path}\n"
+                    if include_descriptions or include_use_cases:
+                        description, use_case = get_llm_response(item_path, llm_provider)
+                        if include_descriptions:
+                            synopsis += f"  - **Description:** {description}\n"
+                        if include_use_cases:
+                            synopsis += f"  - **Use Case:** {use_case}\n"
 
-                if include_token_count and language != "Unknown":
-                    try:
-                        with open(item_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                            token_count = len(content.split())
-                            synopsis += f"  - **Token Count:** {token_count}\n"
-                    except Exception as e:
-                        synopsis += f"  - **Error reading file {item_path}:** {e}\n"
+        if languages:
+            synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
 
-                if include_descriptions or include_use_cases:
-                    description, use_case = get_llm_response(item_path, llm_provider)
-                    if include_descriptions:
-                        synopsis += f"  - **Description:** {description}\n"
-                    if include_use_cases:
-                        synopsis += f"  - **Use Case:** {use_case}\n"
+    except Exception as e:
+        print(f"DEBUG: Error generating synopsis content: {e}")  # Debug log
+        st.error(f"Error generating synopsis: {e}")
+        return
 
-            elif include_descriptions:
-                synopsis += f"- **Directory:** {item_path}\n"
-                if include_descriptions or include_use_cases:
-                    description, use_case = get_llm_response(item_path, llm_provider)
-                    if include_descriptions:
-                        synopsis += f"  - **Description:** {description}\n"
-                    if include_use_cases:
-                        synopsis += f"  - **Use Case:** {use_case}\n"
-
-    if languages:
-        synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
-
+    print("DEBUG: Creating UI elements")  # Debug log
+    
     # Create a container for the synopsis preview and save options
     with st.container():
         st.subheader("Synopsis Preview")
         synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
-
+        
         col1, col2 = st.columns(2)
         with col1:
             save_in_source_directory = st.checkbox("Save in source directory", value=True)
-
+        
         custom_save_directory = None
         if not save_in_source_directory:
             with col2:
                 custom_save_directory = st.text_input("Enter custom save directory:")
 
         if st.button("Save Synopsis", key="save_button"):
+            print("DEBUG: Save button clicked")  # Debug log
             try:
-                if save_in_source_directory:
-                    save_path = directory_path
-                else:
-                    save_path = custom_save_directory if custom_save_directory else directory_path
-
+                save_path = directory_path if save_in_source_directory else (custom_save_directory or directory_path)
+                print(f"DEBUG: Save path determined: {save_path}")  # Debug log
+                
                 # Create the full file path
                 file_path = os.path.join(save_path, "repo_synopsis.md")
-
+                print(f"DEBUG: Full file path: {file_path}")  # Debug log
+                
                 # Ensure the directory exists
                 os.makedirs(save_path, exist_ok=True)
-
+                print("DEBUG: Directory created/verified")  # Debug log
+                
                 # Save the file
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(synopsis_review)
-
+                print("DEBUG: File written successfully")  # Debug log
+                
                 st.success(f"Synopsis saved successfully to: {file_path}")
                 log_event(save_path, f"Synopsis saved to {file_path}")
-
+                
             except Exception as e:
+                print(f"DEBUG: Error saving file: {e}")  # Debug log
                 st.error(f"Failed to save synopsis: {e}")
                 log_event(directory_path, f"Error saving synopsis: {e}")
 
