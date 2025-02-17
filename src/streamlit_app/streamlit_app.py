@@ -217,7 +217,7 @@ def generate_synopsis(
                     language = get_file_language(item_path)
                     languages.add(language)
                     synopsis += f"- **File:** {item_path}, **Language:** {language}\n"
-                    
+
                     if include_token_count and language != "Unknown":
                         try:
                             with open(item_path, "r", encoding="utf-8") as f:
@@ -227,14 +227,14 @@ def generate_synopsis(
                         except Exception as e:
                             print(f"DEBUG: Error reading file {item_path}: {e}")  # Debug log
                             synopsis += f"  - **Error reading file {item_path}:** {e}\n"
-                    
+
                     if include_descriptions or include_use_cases:
                         description, use_case = get_llm_response(item_path, llm_provider)
                         if include_descriptions:
                             synopsis += f"  - **Description:** {description}\n"
                         if include_use_cases:
                             synopsis += f"  - **Use Case:** {use_case}\n"
-                
+
                 elif include_descriptions:
                     synopsis += f"- **Directory:** {item_path}\n"
                     if include_descriptions or include_use_cases:
@@ -253,16 +253,16 @@ def generate_synopsis(
         return
 
     print("DEBUG: Creating UI elements")  # Debug log
-    
+
     # Create a container for the synopsis preview and save options
     with st.container():
         st.subheader("Synopsis Preview")
         synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
-        
+
         col1, col2 = st.columns(2)
         with col1:
             save_in_source_directory = st.checkbox("Save in source directory", value=True)
-        
+
         custom_save_directory = None
         if not save_in_source_directory:
             with col2:
@@ -273,23 +273,23 @@ def generate_synopsis(
             try:
                 save_path = directory_path if save_in_source_directory else (custom_save_directory or directory_path)
                 print(f"DEBUG: Save path determined: {save_path}")  # Debug log
-                
+
                 # Create the full file path
                 file_path = os.path.join(save_path, "repo_synopsis.md")
                 print(f"DEBUG: Full file path: {file_path}")  # Debug log
-                
+
                 # Ensure the directory exists
                 os.makedirs(save_path, exist_ok=True)
                 print("DEBUG: Directory created/verified")  # Debug log
-                
+
                 # Save the file
                 with open(file_path, "w", encoding="utf-8") as f:
                     f.write(synopsis_review)
                 print("DEBUG: File written successfully")  # Debug log
-                
+
                 st.success(f"Synopsis saved successfully to: {file_path}")
                 log_event(save_path, f"Synopsis saved to {file_path}")
-                
+
             except Exception as e:
                 print(f"DEBUG: Error saving file: {e}")  # Debug log
                 st.error(f"Failed to save synopsis: {e}")
