@@ -1,7 +1,7 @@
 import pytest
 import shutil  # Import shutil
 import os
-from .src.streamlit_app.streamlit_app import (
+from src.streamlit_app.streamlit_app import (
     traverse_directory,
     generate_directory_tree,
     get_file_language,
