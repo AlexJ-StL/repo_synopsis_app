@@ -1,98 +1,32 @@
 import streamlit as st
 import os
 import datetime
-from typing import Optional, Tuple
 
-def handle_directory_error(directory_path: str) -> Optional[bool]:
-    """Validate directory path and handle errors."""
-    if not directory_path:
-        st.error("Please enter a directory path.")
-        return False
+st.title("Repo Synopsis Generator")
 
-    if not os.path.exists(directory_path):
-        st.error(f"Directory does not exist: {directory_path}")
-        return False
+st.subheader("Synopsis Options")
+include_tree = st.checkbox("Directory Tree", value=True)
+include_descriptions = st.checkbox("Descriptions", value=True)
+include_token_count = st.checkbox("Token Count", value=True)
+include_use_cases = st.checkbox("Use Cases", value=True)
 
-    if not os.path.isdir(directory_path):
-        st.error(f"Path is not a directory: {directory_path}")
-        return False
+# API keys should be stored in the user's environmental variables
+llm_provider = st.selectbox(
+    "Select LLM API Provider",
+    ("Groq", "Cerberas", "SombaNova", "Gemini"),
+)
 
-    try:
-        # Test if directory is readable
-        os.listdir(directory_path)
-        return True
-    except PermissionError:
-        st.error(f"Permission denied accessing directory: {directory_path}")
-        return False
-    except OSError as e:
-        st.error(f"Error accessing directory: {e}")
-        return False
+directory_path = st.text_input("Enter directory path:")
 
-def safe_file_read(file_path: str) -> Optional[str]:
-    """Safely read file contents with error handling."""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    except UnicodeDecodeError:
-        st.warning(f"Unable to read {file_path} - file may be binary")
-        return None
-    except PermissionError:
-        st.error(f"Permission denied reading file: {file_path}")
-        return None
-    except OSError as e:
-        st.error(f"Error reading file {file_path}: {e}")
-        return None
 
-def safe_llm_call(prompt: str, provider: str) -> Tuple[str, str]:
-    """Safely make LLM API calls with error handling."""
-    try:
-        description, use_case = get_llm_response(prompt, provider)
-        if not description or not use_case:
-            return ("Failed to generate description", "Failed to generate use case")
-        return (description, use_case)
-    except TimeoutError:
-        return ("Error: API request timed out", "Error: API request timed out")
-    except ConnectionError:
-        return ("Error: Network connection failed", "Error: Network connection failed")
-    except Exception as e:
-        return (f"Error: {str(e)}", f"Error: {str(e)}")
-
-def safe_synopsis_save(directory_path: str, synopsis: str, custom_save_directory: Optional[str] = None) -> bool:
-    """Safely save synopsis with error handling."""
-    save_path = custom_save_directory or directory_path
-
-    try:
-        os.makedirs(save_path, exist_ok=True)
-        file_path = os.path.join(save_path, "repo_synopsis.md")
-
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(synopsis)
-
-        st.success(f"Synopsis saved to {file_path}")
-        log_event(save_path, f"Synopsis saved to {file_path}")
-        return True
-
-    except PermissionError:
-        st.error(f"Permission denied writing to {save_path}")
-        log_event(directory_path, f"Permission denied writing to {save_path}")
-        return False
-    except OSError as e:
-        st.error(f"Error saving synopsis: {e}")
-        log_event(directory_path, f"Error saving synopsis: {e}")
-        return False
-
-def log_event(directory_path, message):
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file_path = (
-        os.path.join(directory_path, "event_log.txt")
-        if directory_path
-        else "event_log.txt"
-    )
-    try:
-        with open(log_file_path, "a") as f:
-            f.write(f"{timestamp} - {message}\\n")
-    except Exception as e:
-        st.write(f"Error writing to log file: {e}")
+def traverse_directory(directory_path):
+    items = []
+    for item in os.listdir(directory_path):
+        item_path = os.path.join(directory_path, item)
+        items.append(item_path)
+        if os.path.isdir(item_path):
+            items.extend(traverse_directory(item_path))
+    return items
 
 
 def generate_directory_tree(directory_path, indent=""):
@@ -157,14 +91,77 @@ def get_llm_response(item_path, llm_provider):
     return description, use_case
 
 
-def traverse_directory(directory_path):
-    items = []
-    for item in os.listdir(directory_path):
-        item_path = os.path.join(directory_path, item)
-        items.append(item_path)
-        if os.path.isdir(item_path):
-            items.extend(traverse_directory(item_path))
-    return items
+def log_event(directory_path, message):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    log_file_path = (
+        os.path.join(directory_path, "event_log.txt")
+        if directory_path
+        else "event_log.txt"
+    )
+    try:
+        with open(log_file_path, "a") as f:
+            f.write(f"{timestamp} - {message}\\n")
+    except Exception as e:
+        st.write(f"Error writing to log file: {e}")
+
+
+def save_synopsis(directory_path, synopsis, custom_save_directory=None):
+    """
+    Saves the generated synopsis to a markdown file in the specified directory.
+
+    Args:
+        directory_path (str): The path to the directory where the synopsis was generated from.
+        synopsis (str): The synopsis content to be saved.
+        custom_save_directory (str, optional): The path to a custom directory where the synopsis should be saved. Defaults to None.
+    """
+    if custom_save_directory:
+        save_directory = custom_save_directory
+    else:
+        save_directory = directory_path
+
+    if not save_directory:
+        st.error("Please enter a directory path to save the synopsis.")
+        return
+
+    try:
+        # Ensure the directory exists
+        os.makedirs(save_directory, exist_ok=True)
+
+        # Normalize the file path
+        file_path = os.path.join(save_directory, "repo_synopsis.md")
+        file_path = os.path.normpath(file_path)
+
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(synopsis)
+
+        st.success(f"Synopsis saved to {file_path}")
+        log_event(save_directory, f"Synopsis saved to {file_path}")
+
+    except OSError as e:
+        st.error(f"Error creating directory: {e}")
+        log_event(save_directory, f"Error creating directory: {e}")
+    except IOError as e:
+        st.error(f"Error saving synopsis to file: {e}")
+        log_event(save_directory, f"Error saving synopsis to file: {e}")
+
+    file_path = os.path.join(directory_path, "repo_synopsis.md")
+    print(f"Attempting to save synopsis to: {
+        file_path
+    }")
+    # Check Path Value in console
+
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(synopsis)
+        st.write(f"Synopsis saved to {file_path}")
+        log_event(directory_path, f"Synopsis saved to {file_path}")
+        print("File saved successfully.")  # Check for successful execution
+    except Exception as e:
+        st.write(f"Error saving synopsis: {e}")
+        log_event(directory_path, f"Error saving synopsis: {e}")
+        print(f"Error during file save: {e}")  # Print the error to the console
+
+    print("save_synopsis has completed execution")  # Add log statement
 
 
 def generate_synopsis(
@@ -301,60 +298,20 @@ def generate_synopsis(
     return synopsis
 
 
-def main():
-    st.title("Repo Synopsis Generator")
+if st.button("Proceed"):
 
-    st.subheader("Synopsis Options")
-    include_tree = st.checkbox("Directory Tree", value=True)
-    include_descriptions = st.checkbox("Descriptions", value=True)
-    include_token_count = st.checkbox("Token Count", value=True)
-    include_use_cases = st.checkbox("Use Cases", value=True)
+    def generate_synopsis_wrapper():
+        directory_path_value = directory_path.strip().replace(
+            "\\", "\\\\"
+        )  # ADD .replace()
+        print(f"Directory Path Value: {directory_path_value}")
+        generate_synopsis(
+            directory_path_value,
+            include_tree,
+            include_descriptions,
+            include_token_count,
+            include_use_cases,
+            llm_provider,
+        )
 
-    llm_provider = st.selectbox(
-        "Select LLM API Provider",
-        ("Groq", "Cerberas", "SombaNova", "Gemini"),
-    )
-
-    directory_path = st.text_input("Enter directory path:")
-
-    if st.button("Proceed"):
-        if not handle_directory_error(directory_path):
-            return
-
-        try:
-            synopsis = generate_synopsis(
-                directory_path,
-                include_tree,
-                include_descriptions,
-                include_token_count,
-                include_use_cases,
-                llm_provider
-            )
-
-            if synopsis:
-                with st.container():
-                    st.subheader("Synopsis Preview")
-                    synopsis_review = st.text_area("Synopsis", value=synopsis, height=300)
-
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        save_in_source = st.checkbox("Save in source directory", value=True)
-
-                    custom_save_dir = None
-                    if not save_in_source:
-                        with col2:
-                            custom_save_dir = st.text_input("Enter custom save directory:")
-
-                    if st.button("Save Synopsis"):
-                        if not save_in_source and not custom_save_dir:
-                            st.error("Please enter a custom save directory")
-                            return
-
-                        safe_synopsis_save(directory_path, synopsis_review, custom_save_dir)
-
-        except Exception as e:
-            st.error(f"An unexpected error occurred: {str(e)}")
-            log_event(directory_path, f"Unexpected error: {str(e)}")
-
-if __name__ == "__main__":
-    main()
+    generate_synopsis_wrapper()
