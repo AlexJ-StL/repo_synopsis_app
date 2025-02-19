@@ -1,7 +1,8 @@
 import pytest
 import shutil  # Import shutil
 import os
-from src.streamlit_app.streamlit_app import (
+import streamlit as st
+from streamlit_app.streamlit_app import (
     traverse_directory,
     generate_directory_tree,
     get_file_language,
@@ -9,7 +10,6 @@ from src.streamlit_app.streamlit_app import (
     generate_synopsis,
     get_llm_response
 )
-import streamlit as st
 
 
 # --- Test traverse_directory ---
