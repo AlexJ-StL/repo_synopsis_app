@@ -8,7 +8,8 @@ from streamlit_app.streamlit_app import (
     get_file_language,
     save_synopsis,
     generate_synopsis,
-    get_llm_response
+    get_llm_response,
+    log_event
 )
 
 
@@ -111,6 +112,112 @@ def test_generate_synopsis_empty(tmpdir, monkeypatch):
 
 
 # Add tests for generate_synopsis with different directory structures & options
+def test_generate_synopsis_with_all_options(tmpdir, monkeypatch):
+    # Mock streamlit functions
+    def mock_write(x): return None
+    def mock_error(x): return None
+    def mock_success(x): return None
+    monkeypatch.setattr(st, 'write', mock_write)
+    monkeypatch.setattr(st, 'error', mock_error)
+    monkeypatch.setattr(st, 'success', mock_success)
+
+    # Create test files
+    file1 = tmpdir.join("test.py")
+    file1.write("print('hello')")
+    subdir = tmpdir.mkdir("subdir")
+    file2 = subdir.join("test.js")
+    file2.write("console.log('hello')")
+
+    synopsis = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+
+    assert synopsis is not None
+    assert "Directory Tree" in synopsis
+    assert "test.py" in synopsis
+    assert "test.js" in synopsis
+    assert "Token Count" in synopsis
+    assert "Description" in synopsis
+    assert "Use Case" in synopsis
+
+def test_generate_synopsis_invalid_path(monkeypatch):
+    # Mock streamlit functions
+    def mock_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_error)
+
+    result = generate_synopsis(
+        "invalid/path",
+        True, True, True, True,
+        "Groq"
+    )
+    assert result is None
+
+def test_log_event(tmpdir):
+    log_message = "Test log message"
+    log_event(str(tmpdir), log_message)
+
+    log_file = os.path.join(str(tmpdir), "event_log.txt")
+    assert os.path.exists(log_file)
+    with open(log_file, 'r') as f:
+        content = f.read()
+        assert log_message in content
+
+def test_log_event_error(tmpdir, monkeypatch):
+    def mock_open(*args, **kwargs):
+        raise IOError("Mock IOError")
+    monkeypatch.setattr("builtins.open", mock_open)
+
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    # Should not raise an exception
+    log_event(str(tmpdir), "Test message")
+
+def test_save_synopsis_with_custom_directory(tmpdir):
+    synopsis_content = "Test synopsis"
+    custom_dir = tmpdir.mkdir("custom")
+
+    save_synopsis(str(tmpdir), synopsis_content, str(custom_dir))
+
+    saved_file = custom_dir.join("repo_synopsis.md")
+    assert saved_file.exists()
+    assert saved_file.read() == synopsis_content
+
+def test_generate_directory_tree_nested(tmpdir):
+    # Create a nested directory structure
+    dir1 = tmpdir.mkdir("dir1")
+    dir2 = dir1.mkdir("dir2")
+    file1 = dir2.join("file1.txt")
+    file1.write("content")
+
+    tree = generate_directory_tree(str(tmpdir))
+    assert "dir1" in tree
+    assert "dir2" in tree
+    assert "file1.txt" in tree
+
+def test_traverse_directory_with_hidden_files(tmpdir):
+    # Create some regular and hidden files
+    file1 = tmpdir.join("visible.txt")
+    file1.write("content")
+    hidden = tmpdir.join(".hidden")
+    hidden.write("hidden content")
+
+    items = traverse_directory(str(tmpdir))
+    assert str(file1) in items
+    assert str(hidden) in items
+
+def test_get_file_language_additional_types():
+    assert get_file_language("test.tsx") == "TypeScript"
+    assert get_file_language("test.jsx") == "JavaScript"
+    assert get_file_language("test.cpp") == "C/C++"
+    assert get_file_language("test.rs") == "Rust"
+    assert get_file_language("test.go") == "Go"
+
 # --- Test Fixtures ---
 @pytest.fixture(autouse=True)
 def cleanup_temp_files(tmpdir):
