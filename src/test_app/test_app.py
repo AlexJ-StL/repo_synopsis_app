@@ -219,64 +219,33 @@ def test_get_file_language_additional_types():
     assert get_file_language("test.go") == "Go"
 
 def test_generate_synopsis_with_mock_llm_response(tmpdir, monkeypatch):
-    # Mock streamlit functions
-    def mock_write(x): return None
-    def mock_error(x): return None
-    monkeypatch.setattr(st, 'write', mock_write)
-    monkeypatch.setattr(st, 'error', mock_error)
-
-    # Mock get_llm_response
     def mock_llm_response(*args, **kwargs):
-        return "Mocked LLM response"
+        return "Mocked description", "Mocked use case"
     monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
 
-    # Create test file
     test_file = tmpdir.join("test.py")
     test_file.write("print('hello')")
 
-    result = generate_synopsis(
-        str(tmpdir),
-        include_tree=True,
-        include_descriptions=True,
-        include_token_count=True,
-        include_use_cases=True,
-        llm_provider="Groq"
-    )
-
-    assert result is not None
-    assert "Mocked LLM response" in result
+    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+    assert "Mocked description" in result
+    assert "Mocked use case" in result
 
 def test_generate_synopsis_with_empty_llm_response(tmpdir, monkeypatch):
-    # Mock streamlit functions
-    def mock_write(x): return None
-    def mock_error(x): return None
-    monkeypatch.setattr(st, 'write', mock_write)
-    monkeypatch.setattr(st, 'error', mock_error)
-
-    # Mock get_llm_response to return None
     def mock_llm_response(*args, **kwargs):
-        return None
+        return None, None
     monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
 
-    result = generate_synopsis(
-        str(tmpdir),
-        include_tree=True,
-        include_descriptions=True,
-        include_token_count=True,
-        include_use_cases=True,
-        llm_provider="Groq"
-    )
-
-    assert result is not None
-    assert "Failed to generate" in result
+    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+    assert "Failed to generate description" in result
 
 def test_traverse_directory_with_permission_error(tmpdir, monkeypatch):
-    def mock_listdir(*args):
+    def mock_listdir(path):
         raise PermissionError("Mock permission error")
     monkeypatch.setattr(os, 'listdir', mock_listdir)
 
     result = traverse_directory(str(tmpdir))
-    assert result == []
+    assert isinstance(result, list)
+    assert len(result) == 0
 
 def test_generate_directory_tree_with_special_chars(tmpdir):
     # Test with special characters in filenames
@@ -335,15 +304,13 @@ def test_get_llm_response_with_timeout(monkeypatch):
     assert use_case == "Error: API request timed out"
 
 def test_traverse_directory_with_memory_error(tmpdir, monkeypatch):
-    def mock_listdir(*args):
+    def mock_listdir(path):
         raise MemoryError("Out of memory")
     monkeypatch.setattr(os, 'listdir', mock_listdir)
 
-    def mock_st_error(x): return None
-    monkeypatch.setattr(st, 'error', mock_st_error)
-
     result = traverse_directory(str(tmpdir))
-    assert result == []
+    assert isinstance(result, list)
+    assert len(result) == 0
 
 def test_generate_synopsis_with_large_directory(tmpdir, monkeypatch):
     # Create a large directory structure
@@ -458,19 +425,8 @@ def test_generate_synopsis_with_network_error(tmpdir, monkeypatch):
         raise ConnectionError("Network connection failed")
     monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
 
-    def mock_st_error(x): return None
-    def mock_st_write(x): return None
-    monkeypatch.setattr(st, 'error', mock_st_error)
-    monkeypatch.setattr(st, 'write', mock_st_write)
-
-    result = generate_synopsis(
-        str(tmpdir),
-        include_tree=True,
-        include_descriptions=True,
-        include_token_count=True,
-        include_use_cases=True,
-        llm_provider="Groq"
-    )
+    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+    assert isinstance(result, str)
     assert "Network connection failed" in result
 
 def test_generate_synopsis_with_rate_limit(tmpdir, monkeypatch):
@@ -478,19 +434,8 @@ def test_generate_synopsis_with_rate_limit(tmpdir, monkeypatch):
         raise Exception("Rate limit exceeded")
     monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
 
-    def mock_st_error(x): return None
-    def mock_st_write(x): return None
-    monkeypatch.setattr(st, 'error', mock_st_error)
-    monkeypatch.setattr(st, 'write', mock_st_write)
-
-    result = generate_synopsis(
-        str(tmpdir),
-        include_tree=True,
-        include_descriptions=True,
-        include_token_count=True,
-        include_use_cases=True,
-        llm_provider="Groq"
-    )
+    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+    assert isinstance(result, str)
     assert "Rate limit exceeded" in result
 
 def test_generate_synopsis_with_invalid_unicode(tmpdir, monkeypatch):
