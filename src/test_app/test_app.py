@@ -218,6 +218,419 @@ def test_get_file_language_additional_types():
     assert get_file_language("test.rs") == "Rust"
     assert get_file_language("test.go") == "Go"
 
+def test_generate_synopsis_with_mock_llm_response(tmpdir, monkeypatch):
+    # Mock streamlit functions
+    def mock_write(x): return None
+    def mock_error(x): return None
+    monkeypatch.setattr(st, 'write', mock_write)
+    monkeypatch.setattr(st, 'error', mock_error)
+
+    # Mock get_llm_response
+    def mock_llm_response(*args, **kwargs):
+        return "Mocked LLM response"
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
+
+    # Create test file
+    test_file = tmpdir.join("test.py")
+    test_file.write("print('hello')")
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+
+    assert result is not None
+    assert "Mocked LLM response" in result
+
+def test_generate_synopsis_with_empty_llm_response(tmpdir, monkeypatch):
+    # Mock streamlit functions
+    def mock_write(x): return None
+    def mock_error(x): return None
+    monkeypatch.setattr(st, 'write', mock_write)
+    monkeypatch.setattr(st, 'error', mock_error)
+
+    # Mock get_llm_response to return None
+    def mock_llm_response(*args, **kwargs):
+        return None
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+
+    assert result is not None
+    assert "Failed to generate" in result
+
+def test_traverse_directory_with_permission_error(tmpdir, monkeypatch):
+    def mock_listdir(*args):
+        raise PermissionError("Mock permission error")
+    monkeypatch.setattr(os, 'listdir', mock_listdir)
+
+    result = traverse_directory(str(tmpdir))
+    assert result == []
+
+def test_generate_directory_tree_with_special_chars(tmpdir):
+    # Test with special characters in filenames
+    special_file = tmpdir.join("special!@#$%.txt")
+    special_file.write("content")
+    special_dir = tmpdir.mkdir("dir with spaces")
+    nested_file = special_dir.join("nested.txt")
+    nested_file.write("content")
+
+    tree = generate_directory_tree(str(tmpdir))
+    assert "special!@#$%.txt" in tree
+    assert "dir with spaces" in tree
+    assert "nested.txt" in tree
+
+def test_get_llm_response_with_different_providers(monkeypatch):
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+
+    providers = ["Groq", "Cerberas", "SombaNova", "Gemini"]
+    for provider in providers:
+        response = get_llm_response("test prompt", provider)
+        assert response is not None
+
+def test_save_synopsis_with_unicode_content(tmpdir):
+    unicode_content = "Test synopsis with unicode: 你好, 안녕하세요, Привет"
+    save_synopsis(str(tmpdir), unicode_content)
+
+    saved_file = tmpdir.join("repo_synopsis.md")
+    assert saved_file.read() == unicode_content
+
+def test_save_synopsis_with_encoding_error(tmpdir, monkeypatch):
+    def mock_open(*args, **kwargs):
+        file_mock = mock_open.return_value.__enter__.return_value
+        file_mock.write.side_effect = UnicodeEncodeError(
+            'utf-8', b'test', 0, 1, 'mock encoding error'
+        )
+        return file_mock
+    monkeypatch.setattr("builtins.open", mock_open)
+
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+
+    # Should handle the encoding error gracefully
+    save_synopsis(str(tmpdir), "Test content with encoding issues")
+
+def test_get_llm_response_with_timeout(monkeypatch):
+    def mock_api_call(*args, **kwargs):
+        raise TimeoutError("API request timed out")
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_api_call)
+
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+
+    description, use_case = get_llm_response("test.py", "Groq")
+    assert description == "Error: API request timed out"
+    assert use_case == "Error: API request timed out"
+
+def test_traverse_directory_with_memory_error(tmpdir, monkeypatch):
+    def mock_listdir(*args):
+        raise MemoryError("Out of memory")
+    monkeypatch.setattr(os, 'listdir', mock_listdir)
+
+    def mock_st_error(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+
+    result = traverse_directory(str(tmpdir))
+    assert result == []
+
+def test_generate_synopsis_with_large_directory(tmpdir, monkeypatch):
+    # Create a large directory structure
+    for i in range(1000):
+        subdir = tmpdir.mkdir(f"dir_{i}")
+        file = subdir.join(f"file_{i}.txt")
+        file.write(f"Content {i}")
+
+    def mock_st_warning(x): return None
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'warning', mock_st_warning)
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+
+def test_file_permission_scenarios(tmpdir):
+    # Create a file with restricted permissions
+    test_file = tmpdir.join("restricted.txt")
+    test_file.write("content")
+    os.chmod(str(test_file), 0o000)  # Remove all permissions
+
+    try:
+        result = traverse_directory(str(tmpdir))
+        assert str(test_file) in result
+    finally:
+        os.chmod(str(test_file), 0o666)  # Restore permissions for cleanup
+
+def test_get_file_language_with_mixed_case(tmpdir):
+    assert get_file_language("test.PY") == "Python"
+    assert get_file_language("test.Js") == "JavaScript"
+    assert get_file_language("test.MD") == "Markdown"
+
+def test_generate_synopsis_with_symlinks(tmpdir):
+    # Create a directory with symlinks
+    original_dir = tmpdir.mkdir("original")
+    original_file = original_dir.join("test.txt")
+    original_file.write("content")
+
+    link_dir = tmpdir.mkdir("links")
+    os.symlink(str(original_file), str(link_dir.join("link.txt")))
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "link.txt" in result
+
+def test_save_synopsis_with_concurrent_access(tmpdir):
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    # Simulate concurrent access to the synopsis file
+    def save_concurrent():
+        save_synopsis(str(tmpdir), f"Content from thread {threading.get_ident()}")
+
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = [executor.submit(save_concurrent) for _ in range(5)]
+        for future in futures:
+            future.result()
+
+    # Verify the file exists and contains content
+    synopsis_file = tmpdir.join("repo_synopsis.md")
+    assert synopsis_file.exists()
+    content = synopsis_file.read()
+    assert "Content from thread" in content
+
+def test_generate_synopsis_with_binary_files(tmpdir):
+    # Create a binary file
+    binary_file = tmpdir.join("test.bin")
+    with open(str(binary_file), 'wb') as f:
+        f.write(bytes(range(256)))
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "test.bin" in result
+
+def test_log_event_with_rotation(tmpdir):
+    # Test log rotation by creating multiple log entries
+    for i in range(1000):
+        log_event(str(tmpdir), f"Log entry {i}")
+
+    log_file = os.path.join(str(tmpdir), "event_log.txt")
+    assert os.path.exists(log_file)
+
+    # Check if file size is reasonable
+    assert os.path.getsize(log_file) < 1024 * 1024  # Less than 1MB
+
+def test_generate_synopsis_with_network_error(tmpdir, monkeypatch):
+    def mock_llm_response(*args, **kwargs):
+        raise ConnectionError("Network connection failed")
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert "Network connection failed" in result
+
+def test_generate_synopsis_with_rate_limit(tmpdir, monkeypatch):
+    def mock_llm_response(*args, **kwargs):
+        raise Exception("Rate limit exceeded")
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert "Rate limit exceeded" in result
+
+def test_generate_synopsis_with_invalid_unicode(tmpdir, monkeypatch):
+    # Create a file with invalid unicode
+    test_file = tmpdir.join("invalid_unicode.txt")
+    with open(str(test_file), 'wb') as f:
+        f.write(b'\xff\xfe\xfd')  # Invalid UTF-8
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+
+def test_generate_synopsis_with_deep_recursion(tmpdir, monkeypatch):
+    # Create a deeply nested directory structure
+    current_dir = tmpdir
+    for i in range(100):  # Create 100 levels of nesting
+        current_dir = current_dir.mkdir(f"level_{i}")
+        file = current_dir.join("file.txt")
+        file.write("content")
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    def mock_st_warning(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+    monkeypatch.setattr(st, 'warning', mock_st_warning)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+
+def test_generate_synopsis_with_empty_files(tmpdir, monkeypatch):
+    # Create multiple empty files
+    for i in range(10):
+        file = tmpdir.join(f"empty_{i}.txt")
+        file.write("")
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "empty_" in result
+
+def test_generate_synopsis_with_special_filenames(tmpdir, monkeypatch):
+    # Create files with special characters and spaces
+    special_chars = ['!', '@', '#', '$', '%', '^', '&', ' ', '(', ')', '[', ']']
+    for char in special_chars:
+        file = tmpdir.join(f"file{char}name.txt")
+        file.write("content")
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+
+def test_generate_synopsis_with_mixed_line_endings(tmpdir, monkeypatch):
+    # Create files with different line endings
+    file_unix = tmpdir.join("unix_endings.txt")
+    file_unix.write("line1\nline2\nline3")
+
+    file_windows = tmpdir.join("windows_endings.txt")
+    file_windows.write("line1\r\nline2\r\nline3")
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "unix_endings.txt" in result
+    assert "windows_endings.txt" in result
+
+def test_generate_synopsis_with_hidden_files(tmpdir, monkeypatch):
+    # Create hidden files and directories
+    hidden_dir = tmpdir.mkdir(".hidden_dir")
+    hidden_file = hidden_dir.join(".hidden_file.txt")
+    hidden_file.write("content")
+
+    def mock_st_error(x): return None
+    def mock_st_write(x): return None
+    monkeypatch.setattr(st, 'error', mock_st_error)
+    monkeypatch.setattr(st, 'write', mock_st_write)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert ".hidden_dir" in result
+    assert ".hidden_file.txt" in result
+
 # --- Test Fixtures ---
 @pytest.fixture(autouse=True)
 def cleanup_temp_files(tmpdir):
