@@ -7,12 +7,14 @@ License: MIT
 Keywords: streamlit,python,shutils
 Classifier: Development Status :: 2 - Pre-Alpha
 Classifier: Programming Language :: Python
-Requires-Python: >=3.13.0
+Requires-Python: >=3.11.0
 Description-Content-Type: text/markdown
 Requires-Dist: streamlit
 Requires-Dist: pytest
 Requires-Dist: shutils
 Requires-Dist: pytest-cov>=6.0.0
+Requires-Dist: numpy
+Requires-Dist: pandas
 
 # Streamlit Application
 

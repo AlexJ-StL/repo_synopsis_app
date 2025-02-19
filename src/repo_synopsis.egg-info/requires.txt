@@ -2,3 +2,5 @@ streamlit
 pytest
 shutils
 pytest-cov>=6.0.0
+numpy
+pandas
