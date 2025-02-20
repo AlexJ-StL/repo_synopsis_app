@@ -87,6 +87,19 @@ def test_generate_synopsis_empty_directory(tmpdir, monkeypatch):
     monkeypatch.setattr(st, 'error', mock_error)
     assert generate_synopsis(str(tmpdir), True, True, True, True, "Groq") is None
 
+def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
+    def mock_error(msg): pass
+    def mock_open(*args, **kwargs): raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+    monkeypatch.setattr(st, 'error', mock_error)
+    monkeypatch.setattr("builtins.open", mock_open)
+    
+    # Create test file
+    test_file = tmpdir.join("test.py")
+    test_file.write("print('hello')")
+    
+    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+    assert result is not None
+
 def test_main(monkeypatch):
     def mock_title(msg): pass
     def mock_subheader(msg): pass
@@ -144,6 +157,13 @@ def test_generate_directory_tree(tmpdir):
     assert "subdir" in tree
     assert "test2.txt" in tree
 
+def test_generate_directory_tree_with_error(monkeypatch):
+    def mock_walk(*args, **kwargs): raise OSError("Permission denied")
+    monkeypatch.setattr(os, 'walk', mock_walk)
+    
+    result = generate_directory_tree("/fake/path")
+    assert result == ""
+
 def test_get_file_language():
     assert get_file_language("test.py") == "Python"
     assert get_file_language("test.js") == "JavaScript"
@@ -151,6 +171,19 @@ def test_get_file_language():
     assert get_file_language("test.tsx") == "TypeScript"
     assert get_file_language("test.cpp") == "C++"
     assert get_file_language("test.rs") == "Rust"
+
+def test_get_file_language_additional_extensions():
+    # Test more file extensions
+    assert get_file_language("test.java") == "Java"
+    assert get_file_language("test.go") == "Go"
+    assert get_file_language("test.rb") == "Ruby"
+    assert get_file_language("test.swift") == "Swift"
+    assert get_file_language("test.kt") == "Kotlin"
+    assert get_file_language("test.scala") == "Scala"
+    assert get_file_language("test.php") == "PHP"
+    assert get_file_language("test.cs") == "C#"
+    assert get_file_language("test.m") == "Objective-C"
+    assert get_file_language("test.r") == "R"
 
 def test_get_llm_response():
     # Test Groq provider
@@ -168,6 +201,40 @@ def test_get_llm_response_error():
     desc, use_case = get_llm_response(None, None)  # This should trigger an exception
     assert "Error:" in desc
     assert "Error:" in use_case
+
+def test_generate_synopsis_with_all_options_disabled(tmpdir, monkeypatch):
+    def mock_success(msg): pass
+    def mock_error(msg): pass
+    monkeypatch.setattr(st, 'success', mock_success)
+    monkeypatch.setattr(st, 'error', mock_error)
+
+    # Create test file
+    test_file = tmpdir.join("test.py")
+    test_file.write("print('hello')")
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=False,
+        include_descriptions=False,
+        include_token_count=False,
+        include_use_cases=False,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "Directory Tree" not in result
+    assert "Token Count" not in result
+    assert "Description" not in result
+    assert "Use Case" not in result
+
+def test_log_event_with_directory_creation(tmpdir):
+    # Test logging when the directory doesn't exist
+    new_dir = os.path.join(str(tmpdir), "new_dir")
+    log_event(new_dir, "test message")
+    log_file = os.path.join(new_dir, "event_log.txt")
+    assert os.path.exists(log_file)
+    with open(log_file) as f:
+        content = f.read()
+        assert "test message" in content
 
 if __name__ == "__main__":
     pytest.main(["-v"])
