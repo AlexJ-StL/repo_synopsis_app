@@ -44,9 +44,10 @@ def test_save_synopsis_success(tmpdir, monkeypatch):
 
 def test_save_synopsis_failure(tmpdir, monkeypatch):
     def mock_error(msg): pass
-    def mock_open(*args, **kwargs): raise IOError
+    m = mock_open()
+    m.side_effect = IOError("Simulated IO Error")
     monkeypatch.setattr(st, 'error', mock_error)
-    monkeypatch.setattr("builtins.open", mock_open)
+    monkeypatch.setattr("builtins.open", m)
     assert save_synopsis(str(tmpdir), "test content") is False
 
 def test_log_event_success(tmpdir):
@@ -59,9 +60,10 @@ def test_log_event_success(tmpdir):
 
 def test_log_event_failure(tmpdir, monkeypatch):
     def mock_error(msg): pass
-    def mock_open(*args, **kwargs): raise IOError
+    m = mock_open()
+    m.side_effect = IOError("Simulated IO Error")
     monkeypatch.setattr(st, 'error', mock_error)
-    monkeypatch.setattr("builtins.open", mock_open)
+    monkeypatch.setattr("builtins.open", m)
     log_event(str(tmpdir), "test message")
 
 def test_generate_synopsis_invalid_directory(monkeypatch):
