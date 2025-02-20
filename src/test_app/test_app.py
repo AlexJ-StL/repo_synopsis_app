@@ -1,6 +1,7 @@
 import pytest
 import os
 import streamlit as st
+from unittest.mock import mock_open
 from streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
@@ -89,16 +90,48 @@ def test_generate_synopsis_empty_directory(tmpdir, monkeypatch):
 
 def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
     def mock_error(msg): pass
-    def mock_open(*args, **kwargs): raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+    def mock_success(msg): pass
+    def mock_read(*args, **kwargs):
+        if 'test.py' in str(args[0]):
+            raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+        return ''  # Return empty string for other files
+
     monkeypatch.setattr(st, 'error', mock_error)
-    monkeypatch.setattr("builtins.open", mock_open)
-    
+    monkeypatch.setattr(st, 'success', mock_success)
+
     # Create test file
     test_file = tmpdir.join("test.py")
     test_file.write("print('hello')")
-    
-    result = generate_synopsis(str(tmpdir), True, True, True, True, "Groq")
+
+    # Mock open to raise UnicodeDecodeError
+    m = mock_open()
+    m.side_effect = UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+    monkeypatch.setattr('builtins.open', m)
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
     assert result is not None
+    assert "Unable to read file" in result
+
+    # Only patch the read operation, not the entire open
+    monkeypatch.setattr('builtins.open', mock_open(read_data=''))
+
+    result = generate_synopsis(
+        str(tmpdir),
+        include_tree=True,
+        include_descriptions=True,
+        include_token_count=True,
+        include_use_cases=True,
+        llm_provider="Groq"
+    )
+    assert result is not None
+    assert "Unable to read file" in result
 
 def test_main(monkeypatch):
     def mock_title(msg): pass
@@ -160,7 +193,7 @@ def test_generate_directory_tree(tmpdir):
 def test_generate_directory_tree_with_error(monkeypatch):
     def mock_walk(*args, **kwargs): raise OSError("Permission denied")
     monkeypatch.setattr(os, 'walk', mock_walk)
-    
+
     result = generate_directory_tree("/fake/path")
     assert result == ""
 
