@@ -16,14 +16,17 @@ def traverse_directory(directory_path: str) -> List[str]:
 
 def generate_directory_tree(directory_path: str) -> str:
     """Generate a tree-like structure of the directory."""
-    tree = []
-    for root, dirs, files in os.walk(directory_path):
-        level = root.replace(directory_path, '').count(os.sep)
-        indent = '  ' * level
-        tree.append(f"{indent}{os.path.basename(root)}/")
-        for file in files:
-            tree.append(f"{indent}  {file}")
-    return '\n'.join(tree)
+    try:
+        tree = []
+        for root, dirs, files in os.walk(directory_path):
+            level = root.replace(directory_path, '').count(os.sep)
+            indent = '  ' * level
+            tree.append(f"{indent}{os.path.basename(root)}/")
+            for file in files:
+                tree.append(f"{indent}  {file}")
+        return '\n'.join(tree)
+    except OSError:
+        return ""  # Return empty string on error
 
 def get_file_language(file_path: str) -> str:
     """Determine programming language based on file extension."""
@@ -114,10 +117,14 @@ def save_synopsis(directory_path: str, synopsis: str) -> bool:
 
 def log_event(directory_path: str, message: str) -> None:
     """Log events with timestamp."""
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log_file_path = os.path.join(directory_path, "event_log.txt")
     try:
-        with open(log_file_path, "a") as f:
+        # Create directory if it doesn't exist
+        os.makedirs(directory_path, exist_ok=True)
+
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        log_file_path = os.path.join(directory_path, "event_log.txt")
+
+        with open(log_file_path, "a", encoding="utf-8") as f:
             f.write(f"{timestamp} - {message}\n")
     except Exception as e:
         st.error(f"Error writing to log file: {e}")

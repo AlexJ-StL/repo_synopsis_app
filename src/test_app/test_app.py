@@ -91,11 +91,8 @@ def test_generate_synopsis_empty_directory(tmpdir, monkeypatch):
 def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
     def mock_error(msg): pass
     def mock_success(msg): pass
-    def mock_read(*args, **kwargs):
-        if 'test.py' in str(args[0]):
-            raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-        return ''  # Return empty string for other files
 
+    # Mock streamlit functions
     monkeypatch.setattr(st, 'error', mock_error)
     monkeypatch.setattr(st, 'success', mock_success)
 
@@ -103,10 +100,14 @@ def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
     test_file = tmpdir.join("test.py")
     test_file.write("print('hello')")
 
-    # Mock open to raise UnicodeDecodeError
-    m = mock_open()
-    m.side_effect = UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
-    monkeypatch.setattr('builtins.open', m)
+    # Create a more sophisticated mock that only raises error for specific files
+    original_open = open
+    def selective_mock_open(*args, **kwargs):
+        if str(test_file) in str(args[0]):
+            raise UnicodeDecodeError('utf-8', b'', 0, 1, 'invalid')
+        return original_open(*args, **kwargs)
+
+    monkeypatch.setattr('builtins.open', selective_mock_open)
 
     result = generate_synopsis(
         str(tmpdir),
@@ -116,20 +117,7 @@ def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
         include_use_cases=True,
         llm_provider="Groq"
     )
-    assert result is not None
-    assert "Unable to read file" in result
 
-    # Only patch the read operation, not the entire open
-    monkeypatch.setattr('builtins.open', mock_open(read_data=''))
-
-    result = generate_synopsis(
-        str(tmpdir),
-        include_tree=True,
-        include_descriptions=True,
-        include_token_count=True,
-        include_use_cases=True,
-        llm_provider="Groq"
-    )
     assert result is not None
     assert "Unable to read file" in result
 
@@ -191,11 +179,13 @@ def test_generate_directory_tree(tmpdir):
     assert "test2.txt" in tree
 
 def test_generate_directory_tree_with_error(monkeypatch):
-    def mock_walk(*args, **kwargs): raise OSError("Permission denied")
-    monkeypatch.setattr(os, 'walk', mock_walk)
+    def mock_walk(*args, **kwargs):
+        yield (args[0], [], [])  # First yield a valid result
+        raise OSError("Permission denied")
 
+    monkeypatch.setattr(os, 'walk', mock_walk)
     result = generate_directory_tree("/fake/path")
-    assert result == ""
+    assert result == ""  # The function should return empty string on error
 
 def test_get_file_language():
     assert get_file_language("test.py") == "Python"
@@ -260,14 +250,32 @@ def test_generate_synopsis_with_all_options_disabled(tmpdir, monkeypatch):
     assert "Use Case" not in result
 
 def test_log_event_with_directory_creation(tmpdir):
-    # Test logging when the directory doesn't exist
+    # Create a subdirectory path that doesn't exist yet
     new_dir = os.path.join(str(tmpdir), "new_dir")
-    log_event(new_dir, "test message")
+
+    # Make sure directory doesn't exist
+    if os.path.exists(new_dir):
+        import shutil
+        shutil.rmtree(new_dir)
+
+    # Verify directory doesn't exist before test
+    assert not os.path.exists(new_dir), "Directory already exists"
+
+    # Test logging
+    test_message = "test message"
+    log_event(new_dir, test_message)
+
+    # Verify directory was created
+    assert os.path.exists(new_dir), "Directory was not created"
+
+    # Verify log file exists
     log_file = os.path.join(new_dir, "event_log.txt")
-    assert os.path.exists(log_file)
-    with open(log_file) as f:
+    assert os.path.exists(log_file), "Log file was not created"
+
+    # Verify log content
+    with open(log_file, 'r', encoding="utf-8") as f:
         content = f.read()
-        assert "test message" in content
+        assert test_message in content, "Message not found in log file"
 
 if __name__ == "__main__":
     pytest.main(["-v"])
