@@ -163,14 +163,11 @@ def test_get_llm_response():
     assert "Alternative description" in desc
     assert "Alternative use case" in use_case
 
-def test_get_llm_response_error(monkeypatch):
-    def mock_raise(*args, **kwargs):
-        raise Exception("API Error")
-    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_raise)
-
-    desc, use_case = get_llm_response("test.py", "Groq")
-    assert "Error: API Error" in desc
-    assert "Error: API Error" in use_case
+def test_get_llm_response_error():
+    # Test by passing invalid inputs that will trigger an exception
+    desc, use_case = get_llm_response(None, None)  # This should trigger an exception
+    assert "Error:" in desc
+    assert "Error:" in use_case
 
 if __name__ == "__main__":
     pytest.main(["-v"])
