@@ -1,9 +1,80 @@
 import streamlit as st
 import os
 import datetime
-from typing import Optional
+from typing import Optional, List, Tuple
 
-def handle_directory_error(directory_path: str) -> Optional[bool]:
+def traverse_directory(directory_path: str) -> List[str]:
+    """Recursively traverse directory and return list of file paths."""
+    items = []
+    try:
+        for root, _, files in os.walk(directory_path):
+            for file in files:
+                items.append(os.path.join(root, file))
+        return items
+    except (PermissionError, OSError):
+        return []
+
+def generate_directory_tree(directory_path: str) -> str:
+    """Generate a tree-like structure of the directory."""
+    tree = []
+    for root, dirs, files in os.walk(directory_path):
+        level = root.replace(directory_path, '').count(os.sep)
+        indent = '  ' * level
+        tree.append(f"{indent}{os.path.basename(root)}/")
+        for file in files:
+            tree.append(f"{indent}  {file}")
+    return '\n'.join(tree)
+
+def get_file_language(file_path: str) -> str:
+    """Determine programming language based on file extension."""
+    extension_map = {
+        '.py': 'Python',
+        '.js': 'JavaScript',
+        '.jsx': 'JavaScript',
+        '.ts': 'TypeScript',
+        '.tsx': 'TypeScript',
+        '.java': 'Java',
+        '.cpp': 'C++',
+        '.c': 'C',
+        '.h': 'C/C++',
+        '.rs': 'Rust',
+        '.go': 'Go',
+        '.rb': 'Ruby',
+        '.php': 'PHP',
+        '.cs': 'C#',
+        '.swift': 'Swift',
+        '.kt': 'Kotlin',
+        '.r': 'R',
+        '.scala': 'Scala',
+        '.m': 'Objective-C',
+        '.html': 'HTML',
+        '.css': 'CSS',
+        '.sql': 'SQL',
+        '.md': 'Markdown',
+        '.json': 'JSON',
+        '.xml': 'XML',
+        '.yaml': 'YAML',
+        '.yml': 'YAML'
+    }
+
+    ext = os.path.splitext(file_path.lower())[1]
+    return extension_map.get(ext, 'Unknown')
+
+def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
+    """Get description and use case from LLM API."""
+    try:
+        # Mock implementation - replace with actual LLM API call
+        if llm_provider == "Groq":
+            description = f"Sample description for {os.path.basename(file_path)}"
+            use_case = f"Sample use case for {os.path.basename(file_path)}"
+        else:
+            description = f"Alternative description for {os.path.basename(file_path)}"
+            use_case = f"Alternative use case for {os.path.basename(file_path)}"
+        return description, use_case
+    except Exception as e:
+        return f"Error: {str(e)}", f"Error: {str(e)}"
+
+def handle_directory_error(directory_path: str) -> bool:
     """Validate directory path and handle errors."""
     if not directory_path:
         st.error("Please enter a directory path.")
@@ -92,7 +163,7 @@ def generate_synopsis(
                                 token_count = len(content.split())
                                 synopsis += f"  - **Token Count:** {token_count}\n"
                         except Exception:
-                            synopsis += f"  - **Token Count:** Unable to read file\n"
+                            synopsis += "  - **Token Count:** Unable to read file\n"  # Fixed f-string issue
 
                     if include_descriptions or include_use_cases:
                         description, use_case = get_llm_response(item_path, llm_provider)
