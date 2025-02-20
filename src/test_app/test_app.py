@@ -6,7 +6,11 @@ from streamlit_app.streamlit_app import (
     save_synopsis,
     generate_synopsis,
     log_event,
-    main
+    main,
+    traverse_directory,
+    generate_directory_tree,
+    get_file_language,
+    get_llm_response
 )
 
 def test_handle_directory_error_empty_path(monkeypatch):
@@ -101,6 +105,72 @@ def test_main(monkeypatch):
     monkeypatch.setattr(st, 'success', mock_success)
 
     main()
+
+def test_traverse_directory(tmpdir):
+    # Create test files
+    file1 = tmpdir.join("test1.txt")
+    file1.write("content")
+    subdir = tmpdir.mkdir("subdir")
+    file2 = subdir.join("test2.txt")
+    file2.write("content")
+
+    items = traverse_directory(str(tmpdir))
+    assert len(items) == 2
+    assert any("test1.txt" in item for item in items)
+    assert any("test2.txt" in item for item in items)
+
+def test_traverse_directory_empty(tmpdir):
+    items = traverse_directory(str(tmpdir))
+    assert len(items) == 0
+
+def test_traverse_directory_error(monkeypatch):
+    def mock_walk(*args, **kwargs):
+        raise OSError
+    monkeypatch.setattr(os, 'walk', mock_walk)
+
+    items = traverse_directory("/fake/path")
+    assert len(items) == 0
+
+def test_generate_directory_tree(tmpdir):
+    # Create test files
+    file1 = tmpdir.join("test1.txt")
+    file1.write("content")
+    subdir = tmpdir.mkdir("subdir")
+    file2 = subdir.join("test2.txt")
+    file2.write("content")
+
+    tree = generate_directory_tree(str(tmpdir))
+    assert "test1.txt" in tree
+    assert "subdir" in tree
+    assert "test2.txt" in tree
+
+def test_get_file_language():
+    assert get_file_language("test.py") == "Python"
+    assert get_file_language("test.js") == "JavaScript"
+    assert get_file_language("test.unknown") == "Unknown"
+    assert get_file_language("test.tsx") == "TypeScript"
+    assert get_file_language("test.cpp") == "C++"
+    assert get_file_language("test.rs") == "Rust"
+
+def test_get_llm_response():
+    # Test Groq provider
+    desc, use_case = get_llm_response("test.py", "Groq")
+    assert "Sample description" in desc
+    assert "Sample use case" in use_case
+
+    # Test other provider
+    desc, use_case = get_llm_response("test.py", "Other")
+    assert "Alternative description" in desc
+    assert "Alternative use case" in use_case
+
+def test_get_llm_response_error(monkeypatch):
+    def mock_raise(*args, **kwargs):
+        raise Exception("API Error")
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_raise)
+
+    desc, use_case = get_llm_response("test.py", "Groq")
+    assert "Error: API Error" in desc
+    assert "Error: API Error" in use_case
 
 if __name__ == "__main__":
     pytest.main(["-v"])
