@@ -1,6 +1,6 @@
 Metadata-Version: 2.2
 Name: repo_synopsis
-Version: 0.1.0
+Version: 0.2.0
 Summary: Application that uses an LLM to index the contents of a repository and generate a synopsis.
 Author-email: Alex Jensen <thanotosq@gmail.com>
 License: MIT
