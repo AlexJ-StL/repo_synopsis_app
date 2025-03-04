@@ -2,3 +2,6 @@ streamlit
 shutils
 pytest
 pytest-cov
+pandas
+numpy
+shutils
