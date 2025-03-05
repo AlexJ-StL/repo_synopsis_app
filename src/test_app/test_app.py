@@ -4,7 +4,7 @@ import os
 from unittest.mock import mock_open
 import streamlit as st
 import pytest
-from ..streamlit_app.streamlit_app import (
+from streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
     generate_synopsis,
@@ -53,10 +53,21 @@ def test_handle_directory_error_valid_path(tmpdir, monkeypatch):
 def test_generate_synopsis_file_encoding_error(tmpdir, monkeypatch):
     """Test generate_synopsis with a file that causes an encoding error."""
     test_file = tmpdir.join("test.txt")
-    test_file.write("This is a test file with invalid encoding\000".encode('latin-1')) #Use latin-1, not utf-8.
+    test_file.write(
+        "This is a test file with invalid encoding\000".encode(
+            'latin-1'
+        )
+    )  # Use latin-1, not utf-8.
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
-    generate_synopsis(str(tmpdir), True, True, True, True, "Groq") # test handles it
+    generate_synopsis(
+        str(tmpdir),
+        True,
+        True,
+        True,
+        True,
+        "Groq"
+    )  # test handles it
 
 
 def test_handle_directory_error_permission_error(tmpdir, monkeypatch):
