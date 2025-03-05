@@ -71,8 +71,10 @@ def test_generate_synopsis_file_encoding_error(tmpdir, monkeypatch):
 
 
 def test_handle_directory_error_permission_error(tmpdir, monkeypatch):
-    def mock_error(msg): pass
-    def mock_listdir(path): raise PermissionError
+    def mock_error(msg):
+        pass
+    def mock_listdir(path):
+        raise PermissionError
     monkeypatch.setattr(st, 'error', mock_error)
     monkeypatch.setattr(os, 'listdir', mock_listdir)
     assert handle_directory_error(str(tmpdir)) is False
