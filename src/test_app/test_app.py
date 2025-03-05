@@ -1,8 +1,10 @@
+"""This is a test application for testing streamlit_app"""
+import sys
 import os
-import pytest
-import streamlit as st
 from unittest.mock import mock_open
-from streamlit_app.streamlit_app import (
+import streamlit as st
+import pytest
+from ..streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
     generate_synopsis,
@@ -13,6 +15,7 @@ from streamlit_app.streamlit_app import (
     get_file_language,
     get_llm_response
 )
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def test_handle_directory_error_empty_path(monkeypatch):
