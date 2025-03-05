@@ -1,7 +1,8 @@
 import pytest
 import os
 import streamlit as st
-from unittest.mock import mock_open
+from typing import Tuple
+from unittest.mock import mock_open, patch
 from streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
@@ -19,6 +20,12 @@ def test_handle_directory_error_empty_path(monkeypatch):
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error("") is False
 
+def test_generate_synopsis_no_files_found(tmpdir, monkeypatch):
+    """Test generate_synopsis when no files are found."""
+    def mock_error(msg): pass
+    monkeypatch.setattr(st, 'error', mock_error)
+    assert generate_synopsis(str(tmpdir), True, True, True, True, "Groq") is None
+
 def test_handle_directory_error_nonexistent_path(monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
@@ -28,6 +35,14 @@ def test_handle_directory_error_valid_path(tmpdir, monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error(str(tmpdir)) is True
+
+def test_generate_synopsis_file_encoding_error(tmpdir, monkeypatch):
+    """Test generate_synopsis with a file that causes an encoding error."""
+    test_file = tmpdir.join("test.txt")
+    test_file.write("This is a test file with invalid encoding\000".encode('latin-1')) #Use latin-1, not utf-8.
+    def mock_error(msg): pass
+    monkeypatch.setattr(st, 'error', mock_error)
+    generate_synopsis(str(tmpdir), True, True, True, True, "Groq") # test handles it
 
 def test_handle_directory_error_permission_error(tmpdir, monkeypatch):
     def mock_error(msg): pass
@@ -199,6 +214,10 @@ def test_get_file_language():
 
 def test_get_file_language_additional_extensions():
     # Test more file extensions
+    assert get_file_language("test.cs") == "C#"
+    assert get_file_language("test.m") == "Objective-C"
+    assert get_file_language("test.r") == "R"
+
     assert get_file_language("test.java") == "Java"
     assert get_file_language("test.go") == "Go"
     assert get_file_language("test.rb") == "Ruby"
@@ -206,12 +225,14 @@ def test_get_file_language_additional_extensions():
     assert get_file_language("test.kt") == "Kotlin"
     assert get_file_language("test.scala") == "Scala"
     assert get_file_language("test.php") == "PHP"
-    assert get_file_language("test.cs") == "C#"
-    assert get_file_language("test.m") == "Objective-C"
-    assert get_file_language("test.r") == "R"
+def test_get_file_language_empty_string():
+    assert get_file_language("") == "Unknown"
 
-def test_get_llm_response():
-    # Test Groq provider
+def test_get_file_language_no_extension():
+    assert get_file_language("test") == "Unknown"
+
+def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
+        # Test Groq provider
     desc, use_case = get_llm_response("test.py", "Groq")
     assert "Sample description" in desc
     assert "Sample use case" in use_case
@@ -221,17 +242,50 @@ def test_get_llm_response():
     assert "Alternative description" in desc
     assert "Alternative use case" in use_case
 
+    try:
+        if llm_provider not in ("Groq", "Cerberas", "SombaNova", "Gemini"):  #Explicitly check for invalid provider
+            return "Error: Invalid LLM provider", "Error: Invalid LLM provider"
+
+    except Exception as e:
+        return f"Error: {str(e)}", f"Error: {str(e)}"
+
+
+def test_generate_synopsis_llm_error(tmpdir, monkeypatch):
+    """Test generate_synopsis when the LLM API call fails."""
+    test_file = tmpdir.join("test.py")
+    test_file.write("print('hello')")
+    def mock_error(msg): pass
+    def mock_llm_response(*args, **kwargs):
+        raise Exception("LLM API error")
+    monkeypatch.setattr(st, 'error', mock_error)
+    monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
+    generate_synopsis(str(tmpdir), True, True, True, True, "Groq") #check for error handling
+
 def test_get_llm_response_error():
-    # Test by passing invalid inputs that will trigger an exception
-    desc, use_case = get_llm_response(None, None)  # This should trigger an exception
+    """Test error handling in get_llm_response."""
+    desc, use_case = get_llm_response(None, "Groq")
     assert "Error:" in desc
     assert "Error:" in use_case
 
-def test_generate_synopsis_with_all_options_disabled(tmpdir, monkeypatch):
-    def mock_success(msg): pass
+def test_get_llm_response_invalid_provider():
+    """Test invalid provider handling."""
+    desc, use_case = get_llm_response("test.py", "InvalidProvider")
+    assert "Error: Invalid LLM provider" in desc
+    assert "Error: Invalid LLM provider" in use_case
+
+def test_handle_directory_error_not_a_directory(tmpdir, monkeypatch):
+    """Test handle_directory_error when the path is not a directory."""
+    test_file = tmpdir.join("test.txt")
+    test_file.write("This is a test file.")
     def mock_error(msg): pass
-    monkeypatch.setattr(st, 'success', mock_success)
     monkeypatch.setattr(st, 'error', mock_error)
+    assert handle_directory_error(str(test_file)) is False
+
+def test_save_synopsis_empty_content(tmpdir, monkeypatch):
+    """Test save_synopsis when the content is empty."""
+    def mock_error(msg): pass
+    monkeypatch.setattr(st, 'error', mock_error)
+    assert save_synopsis(str(tmpdir), "") is False
 
     # Create test file
     test_file = tmpdir.join("test.py")

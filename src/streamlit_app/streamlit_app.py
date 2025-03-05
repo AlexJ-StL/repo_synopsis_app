@@ -66,7 +66,12 @@ def get_file_language(file_path: str) -> str:
 def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
     """Get description and use case from LLM API."""
     try:
-        # Mock implementation - replace with actual LLM API call
+        if not file_path or not isinstance(file_path, str):
+            raise ValueError("Invalid file path")
+
+        if not llm_provider or llm_provider not in ("Groq", "Cerberas", "SombaNova", "Gemini"):
+            return "Error: Invalid LLM provider", "Error: Invalid LLM provider"
+
         if llm_provider == "Groq":
             description = f"Sample description for {os.path.basename(file_path)}"
             use_case = f"Sample use case for {os.path.basename(file_path)}"
@@ -104,6 +109,11 @@ def handle_directory_error(directory_path: str) -> bool:
 def save_synopsis(directory_path: str, synopsis: str) -> bool:
     """Save synopsis directly to source directory."""
     try:
+        if not synopsis or synopsis.strip() == "":
+            st.error("Cannot save empty synopsis")
+            log_event(directory_path, "Error: Attempted to save empty synopsis")
+            return False
+
         file_path = os.path.join(directory_path, "repo_synopsis.md")
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(synopsis)
