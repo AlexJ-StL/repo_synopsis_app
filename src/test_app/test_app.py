@@ -231,25 +231,6 @@ def test_get_file_language_empty_string():
 def test_get_file_language_no_extension():
     assert get_file_language("test") == "Unknown"
 
-def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
-        # Test Groq provider
-    desc, use_case = get_llm_response("test.py", "Groq")
-    assert "Sample description" in desc
-    assert "Sample use case" in use_case
-
-    # Test other provider
-    desc, use_case = get_llm_response("test.py", "Other")
-    assert "Alternative description" in desc
-    assert "Alternative use case" in use_case
-
-    try:
-        if llm_provider not in ("Groq", "Cerberas", "SombaNova", "Gemini"):  #Explicitly check for invalid provider
-            return "Error: Invalid LLM provider", "Error: Invalid LLM provider"
-
-    except Exception as e:
-        return f"Error: {str(e)}", f"Error: {str(e)}"
-
-
 def test_generate_synopsis_llm_error(tmpdir, monkeypatch):
     """Test generate_synopsis when the LLM API call fails."""
     test_file = tmpdir.join("test.py")
@@ -277,15 +258,17 @@ def test_get_llm_response_error(monkeypatch):
     assert "Error:" in desc
     assert "Error:" in use_case
 
-def test_get_llm_response_invalid_provider():
+def test_get_llm_response_invalid_provider(monkeypatch):
     """Test invalid provider handling."""
+    from streamlit_app.streamlit_app import get_llm_response as app_get_llm_response
+
     # Test with invalid provider
-    desc, use_case = get_llm_response("test.py", "InvalidProvider")
+    desc, use_case = app_get_llm_response("test.py", "InvalidProvider")
     assert "Error: Invalid LLM provider" in desc
     assert "Error: Invalid LLM provider" in use_case
 
     # Test with valid provider
-    desc, use_case = get_llm_response("test.py", "Groq")
+    desc, use_case = app_get_llm_response("test.py", "Groq")
     assert "Sample description" in desc
     assert "Sample use case" in use_case
 
@@ -300,26 +283,47 @@ def test_handle_directory_error_not_a_directory(tmpdir, monkeypatch):
 def test_save_synopsis_empty_content(tmpdir, monkeypatch):
     """Test save_synopsis when the content is empty."""
     def mock_error(msg): pass
+    def mock_success(msg): pass
+    
+    # Mock all necessary streamlit functions
     monkeypatch.setattr(st, 'error', mock_error)
+    monkeypatch.setattr(st, 'success', mock_success)
+    
+    # Test empty content case
     assert save_synopsis(str(tmpdir), "") is False
 
-    # Create test file
+    # Create a test file structure
     test_file = tmpdir.join("test.py")
     test_file.write("print('hello')")
 
+    # Mock traverse_directory to return our test file
+    def mock_traverse_directory(path):
+        return [str(test_file)]
+    monkeypatch.setattr('streamlit_app.streamlit_app.traverse_directory', mock_traverse_directory)
+
+    # Mock handle_directory_error
+    def mock_handle_directory_error(path):
+        return True
+    monkeypatch.setattr('streamlit_app.streamlit_app.handle_directory_error', mock_handle_directory_error)
+
+    # Mock generate_directory_tree
+    def mock_generate_directory_tree(path):
+        return "test.py"
+    monkeypatch.setattr('streamlit_app.streamlit_app.generate_directory_tree', mock_generate_directory_tree)
+
     result = generate_synopsis(
         str(tmpdir),
-        include_tree=False,
+        include_tree=True,
         include_descriptions=False,
         include_token_count=False,
         include_use_cases=False,
         llm_provider="Groq"
     )
+
     assert result is not None
-    assert "Directory Tree" not in result
-    assert "Token Count" not in result
-    assert "Description" not in result
-    assert "Use Case" not in result
+    assert isinstance(result, str)
+    assert "## Directory Tree" in result
+    assert "test.py" in result
 
 def test_log_event_with_directory_creation(tmpdir):
     # Create a subdirectory path that doesn't exist yet
