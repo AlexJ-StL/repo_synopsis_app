@@ -1,8 +1,7 @@
-import pytest
 import os
+import pytest
 import streamlit as st
-from typing import Tuple
-from unittest.mock import mock_open, patch
+from unittest.mock import mock_open
 from streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
@@ -15,26 +14,38 @@ from streamlit_app.streamlit_app import (
     get_llm_response
 )
 
+
 def test_handle_directory_error_empty_path(monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error("") is False
 
+
 def test_generate_synopsis_no_files_found(tmpdir, monkeypatch):
     """Test generate_synopsis when no files are found."""
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
-    assert generate_synopsis(str(tmpdir), True, True, True, True, "Groq") is None
+    assert generate_synopsis(
+        str(tmpdir),
+        True,
+        True,
+        True,
+        True,
+        "Groq"
+    ) is None
+
 
 def test_handle_directory_error_nonexistent_path(monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error("/nonexistent/path") is False
 
+
 def test_handle_directory_error_valid_path(tmpdir, monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error(str(tmpdir)) is True
+
 
 def test_generate_synopsis_file_encoding_error(tmpdir, monkeypatch):
     """Test generate_synopsis with a file that causes an encoding error."""
@@ -44,6 +55,7 @@ def test_generate_synopsis_file_encoding_error(tmpdir, monkeypatch):
     monkeypatch.setattr(st, 'error', mock_error)
     generate_synopsis(str(tmpdir), True, True, True, True, "Groq") # test handles it
 
+
 def test_handle_directory_error_permission_error(tmpdir, monkeypatch):
     def mock_error(msg): pass
     def mock_listdir(path): raise PermissionError
@@ -51,11 +63,13 @@ def test_handle_directory_error_permission_error(tmpdir, monkeypatch):
     monkeypatch.setattr(os, 'listdir', mock_listdir)
     assert handle_directory_error(str(tmpdir)) is False
 
+
 def test_save_synopsis_success(tmpdir, monkeypatch):
     def mock_success(msg): pass
     monkeypatch.setattr(st, 'success', mock_success)
     assert save_synopsis(str(tmpdir), "test content") is True
     assert os.path.exists(os.path.join(str(tmpdir), "repo_synopsis.md"))
+
 
 def test_save_synopsis_failure(tmpdir, monkeypatch):
     def mock_error(msg): pass
@@ -65,6 +79,7 @@ def test_save_synopsis_failure(tmpdir, monkeypatch):
     monkeypatch.setattr("builtins.open", m)
     assert save_synopsis(str(tmpdir), "test content") is False
 
+
 def test_log_event_success(tmpdir):
     log_event(str(tmpdir), "test message")
     log_file = os.path.join(str(tmpdir), "event_log.txt")
@@ -72,6 +87,7 @@ def test_log_event_success(tmpdir):
     with open(log_file) as f:
         content = f.read()
         assert "test message" in content
+
 
 def test_log_event_failure(tmpdir, monkeypatch):
     def mock_error(msg): pass
@@ -81,10 +97,12 @@ def test_log_event_failure(tmpdir, monkeypatch):
     monkeypatch.setattr("builtins.open", m)
     log_event(str(tmpdir), "test message")
 
+
 def test_generate_synopsis_invalid_directory(monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert generate_synopsis("", True, True, True, True, "Groq") is None
+
 
 def test_generate_synopsis_success(tmpdir, monkeypatch):
     def mock_success(msg): pass
@@ -100,10 +118,12 @@ def test_generate_synopsis_success(tmpdir, monkeypatch):
     assert result is not None
     assert os.path.exists(os.path.join(str(tmpdir), "repo_synopsis.md"))
 
+
 def test_generate_synopsis_empty_directory(tmpdir, monkeypatch):
     def mock_error(msg): pass
     monkeypatch.setattr(st, 'error', mock_error)
     assert generate_synopsis(str(tmpdir), True, True, True, True, "Groq") is None
+
 
 def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
     def mock_error(msg): pass
@@ -138,6 +158,7 @@ def test_generate_synopsis_with_file_read_error(tmpdir, monkeypatch):
     assert result is not None
     assert "Unable to read file" in result
 
+
 def test_main(monkeypatch):
     def mock_title(msg): pass
     def mock_subheader(msg): pass
@@ -157,6 +178,7 @@ def test_main(monkeypatch):
 
     main()
 
+
 def test_traverse_directory(tmpdir):
     # Create test files
     file1 = tmpdir.join("test1.txt")
@@ -170,9 +192,11 @@ def test_traverse_directory(tmpdir):
     assert any("test1.txt" in item for item in items)
     assert any("test2.txt" in item for item in items)
 
+
 def test_traverse_directory_empty(tmpdir):
     items = traverse_directory(str(tmpdir))
     assert len(items) == 0
+
 
 def test_traverse_directory_error(monkeypatch):
     def mock_walk(*args, **kwargs):
@@ -181,6 +205,7 @@ def test_traverse_directory_error(monkeypatch):
 
     items = traverse_directory("/fake/path")
     assert len(items) == 0
+
 
 def test_generate_directory_tree(tmpdir):
     # Create test files
@@ -195,6 +220,7 @@ def test_generate_directory_tree(tmpdir):
     assert "subdir" in tree
     assert "test2.txt" in tree
 
+
 def test_generate_directory_tree_with_error(monkeypatch):
     def mock_walk(*args, **kwargs):
         yield (args[0], [], [])  # First yield a valid result
@@ -204,6 +230,7 @@ def test_generate_directory_tree_with_error(monkeypatch):
     result = generate_directory_tree("/fake/path")
     assert result == ""  # The function should return empty string on error
 
+
 def test_get_file_language():
     assert get_file_language("test.py") == "Python"
     assert get_file_language("test.js") == "JavaScript"
@@ -211,6 +238,7 @@ def test_get_file_language():
     assert get_file_language("test.tsx") == "TypeScript"
     assert get_file_language("test.cpp") == "C++"
     assert get_file_language("test.rs") == "Rust"
+
 
 def test_get_file_language_additional_extensions():
     # Test more file extensions
@@ -228,8 +256,10 @@ def test_get_file_language_additional_extensions():
 def test_get_file_language_empty_string():
     assert get_file_language("") == "Unknown"
 
+
 def test_get_file_language_no_extension():
     assert get_file_language("test") == "Unknown"
+
 
 def test_generate_synopsis_llm_error(tmpdir, monkeypatch):
     """Test generate_synopsis when the LLM API call fails."""
@@ -241,6 +271,7 @@ def test_generate_synopsis_llm_error(tmpdir, monkeypatch):
     monkeypatch.setattr(st, 'error', mock_error)
     monkeypatch.setattr("streamlit_app.streamlit_app.get_llm_response", mock_llm_response)
     generate_synopsis(str(tmpdir), True, True, True, True, "Groq") #check for error handling
+
 
 def test_get_llm_response_error(monkeypatch):
     """Test error handling in get_llm_response."""
@@ -258,6 +289,7 @@ def test_get_llm_response_error(monkeypatch):
     assert "Error:" in desc
     assert "Error:" in use_case
 
+
 def test_get_llm_response_invalid_provider(monkeypatch):
     """Test invalid provider handling."""
     from streamlit_app.streamlit_app import get_llm_response as app_get_llm_response
@@ -272,6 +304,7 @@ def test_get_llm_response_invalid_provider(monkeypatch):
     assert "Sample description" in desc
     assert "Sample use case" in use_case
 
+
 def test_handle_directory_error_not_a_directory(tmpdir, monkeypatch):
     """Test handle_directory_error when the path is not a directory."""
     test_file = tmpdir.join("test.txt")
@@ -280,15 +313,16 @@ def test_handle_directory_error_not_a_directory(tmpdir, monkeypatch):
     monkeypatch.setattr(st, 'error', mock_error)
     assert handle_directory_error(str(test_file)) is False
 
+
 def test_save_synopsis_empty_content(tmpdir, monkeypatch):
     """Test save_synopsis when the content is empty."""
     def mock_error(msg): pass
     def mock_success(msg): pass
-    
+
     # Mock all necessary streamlit functions
     monkeypatch.setattr(st, 'error', mock_error)
     monkeypatch.setattr(st, 'success', mock_success)
-    
+
     # Test empty content case
     assert save_synopsis(str(tmpdir), "") is False
 
@@ -324,6 +358,7 @@ def test_save_synopsis_empty_content(tmpdir, monkeypatch):
     assert isinstance(result, str)
     assert "## Directory Tree" in result
     assert "test.py" in result
+
 
 def test_log_event_with_directory_creation(tmpdir):
     # Create a subdirectory path that doesn't exist yet
