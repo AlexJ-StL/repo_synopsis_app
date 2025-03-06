@@ -20,14 +20,29 @@ Requires-Dist: pandas
 
 ## Description
 
-This application is a Streamlit-based tool. (Replace with a more specific description of what your application does).
+This application is a Streamlit-based repository analysis tool that generates comprehensive synopses of code repositories. It uses LLM (Language Learning Model) providers like Groq, Cerberas, SombaNova, and Gemini to analyze code files and provide descriptions and use cases for each file.
+
+## Features
+
+- Directory tree visualization
+- File language detection
+- Token count analysis
+- LLM-powered file descriptions and use cases
+- Event logging
+- Multiple LLM provider support (Groq, Cerberas, SombaNova, Gemini)
 
 ## Usage Instructions
 
-1.  Clone this repository.
-2.  Navigate to the project directory.
-3.  Install dependencies using uv: `uv pip install -r requirements.txt`
-4.  Run the application: `streamlit run your_app.py` (replace `your_app.py` with the name of your main script).
+1. Clone this repository
+2. Navigate to the project directory
+3. Install dependencies using uv:
+   ```bash
+   uv pip install -r requirements.txt
+   ```
+4. Run the application:
+   ```bash
+   streamlit run src/streamlit_app/streamlit_app.py
+   ```
 
 ## Directory Tree
 
@@ -35,37 +50,48 @@ This application is a Streamlit-based tool. (Replace with a more specific descri
 .
 ├── __init__.py
 ├── __pycache__/
-│   └── __init__.cpython-313.pyc
 ├── event_log.txt
 ├── pyproject.toml
 ├── README.md
 ├── requirements.txt
 ├── src/
 │   ├── repo_synopsis.egg-info/
-│   │   ├── dependency_links.txt
-│   │   ├── PKG-INFO
-│   │   ├── requires.txt
-│   │   ├── SOURCES.txt
-│   │   └── top_level.txt
 │   ├── streamlit_app/
 │   │   ├── __init__.py
-│   │   ├── __pycache__/
-│   │   │   ├── __init__.cpython-313.pyc
-│   │   │   └── streamlit_app.cpython-313.pyc
 │   │   └── streamlit_app.py
 │   └── test_app/
-│       ├── __pycache__/
-│       │   ├── __init__.cpython-313.pyc
-│       │   └── test_app.cpython-313-pytest-8.3.4.pyc
 │       └── test_app.py
 └── uv.lock
 ```
 
+## Dependencies
+
+- streamlit
+- pytest
+- shutils
+- pytest-cov>=6.0.0
+- numpy
+- pandas
+
+## Development
+
+### Testing
+
+Run the tests using pytest:
+```bash
+pytest src/test_app/test_app.py -v
+```
+
 ## Changelog
 
-### v0.1.0 - Initial Release
+### v0.2.0 - Current
+- Added multiple LLM provider support
+- Implemented comprehensive test suite
+- Added file analysis features (token count, language detection)
+- Improved error handling and logging
 
-*   Initial commit with basic Streamlit application setup.
+### v0.1.0 - Initial Release
+- Initial commit with basic Streamlit application setup
 
 ## License
 
