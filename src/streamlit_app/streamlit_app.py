@@ -69,15 +69,31 @@ def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
         if not file_path or not isinstance(file_path, str):
             raise ValueError("Invalid file path")
 
-        if not llm_provider or llm_provider not in ("Groq", "Cerberas", "SombaNova", "Gemini"):
-            return "Error: Invalid LLM provider", "Error: Invalid LLM provider"
+        if not llm_provider or llm_provider not in (
+            "Groq",
+            "Cerberas",
+            "SombaNova",
+            "Gemini"
+        ):
+            return (
+                "Error: Invalid LLM provider",
+                "Error: Invalid LLM provider"
+            )
 
         if llm_provider == "Groq":
-            description = f"Sample description for {os.path.basename(file_path)}"
-            use_case = f"Sample use case for {os.path.basename(file_path)}"
+            description = f"Sample description for {
+                os.path.basename(file_path)
+            }"
+            use_case = f"Sample use case for {
+                os.path.basename(file_path)
+            }"
         else:
-            description = f"Alternative description for {os.path.basename(file_path)}"
-            use_case = f"Alternative use case for {os.path.basename(file_path)}"
+            description = f"Alternative description for {
+                os.path.basename(file_path)
+            }"
+            use_case = f"Alternative use case for {
+                os.path.basename(file_path)
+            }"
         return description, use_case
     except Exception as e:
         return f"Error: {str(e)}", f"Error: {str(e)}"
@@ -178,16 +194,25 @@ def generate_synopsis(
                 if os.path.isfile(item_path):
                     language = get_file_language(item_path)
                     languages.add(language)
-                    synopsis += f"- **File:** {item_path}, **Language:** {language}\n"
+                    synopsis += (
+                        f"- **File:** {item_path}, "
+                        f"**Language:** {language}\n"
+                    )
 
                     if include_token_count and language != "Unknown":
                         try:
                             with open(item_path, "r", encoding="utf-8") as f:
                                 content = f.read()
                                 token_count = len(content.split())
-                                synopsis += f"  - **Token Count:** {token_count}\n"
+                                synopsis += (
+                                    f"  - **Token Count:**"
+                                    f"{token_count}\n"
+                                )
                         except Exception:
-                            synopsis += "  - **Token Count:** Unable to read file\n"
+                            synopsis += (
+                                "  - **Token Count:** "
+                                "Unable to read file\n"
+                            )
 
                     if include_descriptions or include_use_cases:
                         description, use_case = get_llm_response(
