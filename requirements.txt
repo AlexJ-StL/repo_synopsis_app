@@ -1,7 +1,6 @@
 streamlit
 shutils
 pytest
-pytest-cov
+pytest-cov>=6.0.0
 pandas
 numpy
-shutils
