@@ -4,3 +4,4 @@ pytest
 pytest-cov>=6.0.0
 pandas
 numpy
+transformers
