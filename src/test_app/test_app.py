@@ -5,6 +5,7 @@ import shutil
 # Standard library imports
 from unittest.mock import patch
 from pathlib import Path
+from typing import NamedTuple
 
 # Third party imports
 import streamlit as st
@@ -21,6 +22,7 @@ from streamlit_app.streamlit_app import (
     get_file_language,
     get_llm_response,
     process_repo,
+    summarize_text,
 )
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -93,14 +95,43 @@ def test_generate_synopsis_invalid_directory(monkeypatch):
 def test_generate_synopsis_empty_directory(tmp_path, monkeypatch):
     """Test generate_synopsis with an empty directory."""
     monkeypatch.setattr(st, "error", mock_error)
-    assert generate_synopsis(
+    result = generate_synopsis(
         str(tmp_path),
         True,
         True,
         True,
         True,
         "Groq"
-    ) is None
+    )
+    assert result == ""  # Assert that an empty string is returned
+
+
+def test_generate_synopsis_no_items(tmp_path, monkeypatch):
+    """Test generate_synopsis when no items are found."""
+    monkeypatch.setattr(st, "error", mock_error)  # Mock Streamlit warnings
+    result = generate_synopsis(
+        str(tmp_path),
+        True,
+        False,
+        False,
+        False,
+        "Groq"
+    )
+    assert result == ""  # Assert that an empty string is returned
+
+
+def test_generate_synopsis_all_options_false(tmp_path, monkeypatch):
+    """Test generate_synopsis with all options set to False."""
+    monkeypatch.setattr(st, "error", mock_error)
+    result = generate_synopsis(
+        str(tmp_path),
+        False,
+        False,
+        False,
+        False,
+        "Groq"
+    )
+    assert result is not None  # Should still produce an empty synopsis
 
 
 def test_traverse_directory(tmp_path):
@@ -136,7 +167,6 @@ def test_traverse_directory_error():
 def test_generate_directory_tree(tmp_path):
     """Test generate_directory_tree with a
     directory containing files and subdirectories."""
-    """Test generate_directory_tree with a directory containing files and subdirectories."""
     file1 = tmp_path / "test1.txt"
     file1.write_text("content")
     subdir = tmp_path / "subdir"
@@ -157,6 +187,30 @@ def test_generate_directory_tree_with_error():
         assert tree == ""
 
 
+def test_summarize_text():
+    """Test the text summarization function."""
+    text = """This is a long piece of text that
+    needs to be summarized. It contains multiple
+    sentences and should be made shorter by the
+    summarization function. The summary should capture
+    the main points while reducing the overall length."""
+    summary = summarize_text(text)
+    assert len(summary) < len(text)  # Check for length reduction
+    assert "summarized" in summary.lower()  # Check for content
+
+
+def test_get_file_language_known():
+    """Test get_file_language with known extensions."""
+    assert get_file_language("my_file.py") == "Python"
+    assert get_file_language("script.js") == "JavaScript"
+    assert get_file_language("data.json") == "JSON"
+
+
+def test_get_file_language_unknown():
+    """Test get_file_language with unknown extensions."""
+    assert get_file_language("mystery.xyz") == "Unknown"
+
+
 def test_get_file_language():
     """Test get_file_language with various file extensions."""
     assert get_file_language("test.py") == "Python"
@@ -175,7 +229,7 @@ def test_get_llm_response(mock_summarize, tmp_path):
 
     mock_summarize.return_value = "Summarized text"
 
-    description, use_case = get_llm_response(str(file_path), "OpenAI")
+    description, use_case = get_llm_response(str(file_path), "Groq")
 
     assert description == "Summarized text"
     assert use_case == "Placeholder use case"
@@ -185,7 +239,7 @@ def test_get_llm_response_error(tmp_path):
     """Test get_llm_response with an IOError."""
     file_path = tmp_path / "test.txt"
     with patch("builtins.open", side_effect=IOError("Simulated IO Error")):
-        description, use_case = get_llm_response(str(file_path), "OpenAI")
+        description, use_case = get_llm_response(str(file_path), "Groq")
         assert "Error" in description
         assert "Error" in use_case
 
@@ -204,7 +258,7 @@ def test_process_repo_success(tmp_path, monkeypatch):
         "streamlit_app.streamlit_app.get_llm_response",
         lambda *args: ("desc", "use")
     )
-    repo_data = process_repo(str(repo_path), include_options, "OpenAI")
+    repo_data = process_repo(str(repo_path), include_options, "Groq")
     assert "files" in repo_data
     assert len(repo_data["files"]) == 1
     assert repo_data["files"][0]["language"] == "Python"
@@ -226,8 +280,89 @@ def test_process_repo_error(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(st, "error", mock_error)
     with patch("os.walk", side_effect=OSError("Simulated OSError")):
-        repo_data = process_repo(str(repo_path), include_options, "OpenAI")
+        repo_data = process_repo(str(repo_path), include_options, "Groq")
         assert "error" not in repo_data
+
+
+def test_process_repo_empty_repo(monkeypatch):
+    """Test processing empty repositories"""
+    monkeypatch.setattr(st, "error", mock_error)
+    result = process_repo(
+        "",
+        {
+            "token_count": False,
+            "descriptions": False,
+            "use_cases": False
+        },
+        "Groq"
+    )
+    assert "error" in result
+    assert result["error"] == "Empty repo path provided"
+
+
+def test_process_repo_no_files(tmp_path, monkeypatch):
+    """Test when a directory is given with no files"""
+    repo_path = tmp_path / "empty_repo"
+    repo_path.mkdir()
+    monkeypatch.setattr(st, "error", mock_error)
+    result = process_repo(
+        str(repo_path),
+        {
+            "token_count": False,
+            "descriptions": False,
+            "use_cases": False
+        },
+        "Groq"
+    )
+    assert "files" in result
+    assert len(result["files"]) == 0
+
+
+def test_process_repo_unknown_language(tmp_path, monkeypatch):
+    """Test process_repo when an unknown file type is encountered."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+    (repo_path / "file1.xyz").write_text("content")
+    include_options = {
+        "token_count": False,
+        "descriptions": False,
+        "use_cases": False
+    }
+    repo_data = process_repo(str(repo_path), include_options, "Groq")
+    assert "files" in repo_data
+    assert len(repo_data["files"]) == 1
+    assert repo_data["files"][0]["language"] == "Unknown"
+
+
+def test_process_repo_file_read_error(tmp_path, monkeypatch):
+    """Test process_repo when file reading fails."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+    file_path = repo_path / "file1.py"
+    file_path.touch()  # Create file without content
+    include_options = {
+        "token_count": True,
+        "descriptions": False,
+        "use_cases": False
+    }
+
+    # Mock the built-in 'open' function to raise an IOError
+    with patch('builtins.open', side_effect=IOError("Simulated IOError")):
+        repo_data = process_repo(str(repo_path), include_options, "Groq")
+
+    assert "files" in repo_data
+    assert len(repo_data["files"]) == 1
+    assert repo_data["files"][0]["token_count"] == "Unable to read file"
+
+
+def test_save_synopsis_with_content(tmp_path):
+    """Test saving synopsis with content."""
+    synopsis_content = "This is the synopsis content."
+    result = save_synopsis(str(tmp_path), synopsis_content)
+    assert result is True
+    synopsis_file = tmp_path / "synopsis.txt"
+    assert synopsis_file.exists()
+    assert synopsis_file.read_text() == synopsis_content
 
 
 def test_save_synopsis_empty_content(tmp_path, monkeypatch):
@@ -235,6 +370,14 @@ def test_save_synopsis_empty_content(tmp_path, monkeypatch):
     monkeypatch.setattr(st, "error", mock_error)
     result = save_synopsis(str(tmp_path), "")
     assert result is False
+
+
+def test_save_synopsis_ioerror(tmp_path, monkeypatch):
+    """Test save_synopsis with an IOError."""
+    monkeypatch.setattr(st, "error", mock_error)
+    with patch("builtins.open", side_effect=IOError("Simulated IOError")):
+        result = save_synopsis(str(tmp_path), "Test")
+        assert result is False
 
 
 def test_handle_directory_error_not_a_directory(tmp_path, monkeypatch):
@@ -246,44 +389,105 @@ def test_handle_directory_error_not_a_directory(tmp_path, monkeypatch):
     assert result is False
 
 
+def test_handle_directory_error_invalid_path(monkeypatch):
+    """Test invalid path scenarios"""
+    monkeypatch.setattr(st, "error", mock_error)
+    assert handle_directory_error("nonexistent_path") is False
+    assert handle_directory_error("/this/is/also/bad") is False
+    # Test other cases
+
+
+def test_handle_directory_error_file_path(tmp_path, monkeypatch):
+    """Test file path scenarios"""
+    file_path = tmp_path / "a_file.txt"
+    file_path.touch()
+    monkeypatch.setattr(st, "error", mock_error)
+    assert handle_directory_error(str(file_path)) is False
+
+
+def test_handle_directory_error_no_permission(tmp_path, monkeypatch):
+    """Test handle_directory_error when permission is denied."""
+    test_dir = tmp_path / "testdir"
+    test_dir.mkdir()
+
+    # Mock os.listdir to raise PermissionError
+    monkeypatch.setattr(
+        "os.listdir",
+        lambda _: (_ for _ in ()).throw(PermissionError("Permission denied"))
+    )
+    monkeypatch.setattr(st, "error", mock_error)
+
+    assert handle_directory_error(str(test_dir)) is False
+
+
+def test_handle_directory_error_file_exists(tmp_path, monkeypatch):
+    """Test handle_directory_error when file exists."""
+    test_file = tmp_path / "test_file.txt"
+    test_file.touch()
+    monkeypatch.setattr(st, "error", mock_error)
+    assert handle_directory_error(str(test_file)) is False
+
+
+class SynopsisTestCase(NamedTuple):
+    """Test case structure for generate_synopsis tests."""
+    include_tree: bool
+    include_descriptions: bool
+    include_token_count: bool
+    include_use_cases: bool
+    expected_result: bool
+
+
 @pytest.mark.parametrize(
-    "include_tree,"
-    "include_descriptions,"
-    "include_token_count,"
-    "include_use_cases,"
-    "expected_result",
+    "test_case",
     [
-        (True, False, False, False, True),
-        (False, True, True, True, True),
-        (False, False, False, False, False),
+        SynopsisTestCase(
+            include_tree=True,
+            include_descriptions=False,
+            include_token_count=False,
+            include_use_cases=False,
+            expected_result=True
+        ),  # Tree only
+        SynopsisTestCase(
+            include_tree=False,
+            include_descriptions=True,
+            include_token_count=True,
+            include_use_cases=True,
+            expected_result=True
+        ),  # All details, no tree
+        SynopsisTestCase(
+            include_tree=False,
+            include_descriptions=False,
+            include_token_count=False,
+            include_use_cases=False,
+            expected_result=False
+        ),  # No content
     ]
 )
 def test_generate_synopsis_various_options(
     tmp_path,
-    include_tree,
-    include_descriptions,
-    include_token_count,
-    include_use_cases,
-    expected_result,
-    monkeypatch
+    monkeypatch,
+    test_case: SynopsisTestCase
 ):
     """Test generate_synopsis with various options."""
     test_file = tmp_path / "test.py"
     test_file.write_text("print('hello')")
+
     monkeypatch.setattr(st, "error", lambda msg: None)
     monkeypatch.setattr(
         "streamlit_app.streamlit_app.get_llm_response",
         lambda *args: ("desc", "use")
     )
+
     result = generate_synopsis(
         str(tmp_path),
-        include_tree=include_tree,
-        include_descriptions=include_descriptions,
-        include_token_count=include_token_count,
-        include_use_cases=include_use_cases,
+        include_tree=test_case.include_tree,
+        include_descriptions=test_case.include_descriptions,
+        include_token_count=test_case.include_token_count,
+        include_use_cases=test_case.include_use_cases,
         llm_provider="Groq"
     )
-    assert (result is not None) == expected_result
+
+    assert (result is not None) == test_case.expected_result
 
 
 def test_generate_synopsis_with_multiple_files(tmp_path, monkeypatch):

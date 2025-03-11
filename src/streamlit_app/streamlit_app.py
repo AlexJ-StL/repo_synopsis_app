@@ -198,7 +198,7 @@ def save_synopsis(directory_path: str, content: str) -> bool:
         return True
     except Exception as e:
         st.error(f"Error saving synopsis: {e}")
-        return None
+        return False
 
     try:
         items = traverse_directory(directory_path)
@@ -281,7 +281,7 @@ def generate_synopsis(
     include_descriptions: bool = True,
     include_token_count: bool = True,
     include_use_cases: bool = True,
-    llm_provider: str = "Gemini",
+    llm_provider: str = "Groq",
 ) -> Optional[str]:
     """Generate and save synopsis directly."""
     if not handle_directory_error(directory_path):
@@ -290,8 +290,10 @@ def generate_synopsis(
     try:
         items = traverse_directory(directory_path)
         if not items:
-            st.error("No items found in directory")
-            return None
+            st.warning(
+                "No items found in directory. Generating empty synopsis."
+            )
+            return ""  # Return empty string, not None
 
         synopsis = ""
         languages = set()
