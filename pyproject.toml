@@ -11,6 +11,7 @@ dependencies = [
     "numpy",
     "pandas",
     "transformers>=4.49.0",
+    "torch>=2.6.0",
 ]
 requires-python = ">= 3.11.0"
 authors = [ {name = "Alex Jensen", email = "thanotosq@gmail.com"}, ]

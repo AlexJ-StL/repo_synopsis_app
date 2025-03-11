@@ -1,0 +1,129 @@
+{
+    "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src": {
+        "repo_path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src",
+        "files": [
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\repo_synopsis.egg-info\\dependency_links.txt",
+                "language": "Unknown",
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\repo_synopsis.egg-info\\PKG-INFO",
+                "language": "Unknown",
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\repo_synopsis.egg-info\\requires.txt",
+                "language": "Unknown",
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\repo_synopsis.egg-info\\SOURCES.txt",
+                "language": "Unknown",
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\repo_synopsis.egg-info\\top_level.txt",
+                "language": "Unknown",
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\streamlit_app.py",
+                "language": "Python",
+                "token_count": 1155,
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\__init__.py",
+                "language": "Python",
+                "token_count": 0,
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\__pycache__\\streamlit_app.cpython-312.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\__pycache__\\streamlit_app.cpython-313.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\__pycache__\\__init__.cpython-312.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\streamlit_app\\__pycache__\\__init__.cpython-313.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\simple_app.py",
+                "language": "Python",
+                "token_count": 9,
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\test_app.py",
+                "language": "Python",
+                "token_count": 1024,
+                "description": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/.",
+                "use_case": "Error: At least one of TensorFlow 2.0 or PyTorch should be installed. To install TensorFlow 2.0, read the instructions at https://www.tensorflow.org/install/ To install PyTorch, read the instructions at https://pytorch.org/."
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\test_app.cpython-312-pytest-7.4.4.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\test_app.cpython-312-pytest-8.3.4.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xcb in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\test_app.cpython-313-pytest-8.3.4.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\test_app.cpython-313-pytest-8.3.4.pyc.12244",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\test_app.cpython-313.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            },
+            {
+                "path": "C:\\Users\\AlexJ\\Documents\\Coding\\Repos\\my-repos\\repo_synopsis_app\\src\\test_app\\__pycache__\\__init__.cpython-313.pyc",
+                "language": "Unknown",
+                "description": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte",
+                "use_case": "Error: 'utf-8' codec can't decode byte 0xf3 in position 0: invalid continuation byte"
+            }
+        ],
+        "languages": [
+            "Python",
+            "Unknown"
+        ]
+    }
+}

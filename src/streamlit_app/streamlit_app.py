@@ -99,7 +99,7 @@ def process_repo(
     llm_provider: str
 ) -> Dict:
     if not repo_path:
-            return {
+        return {
                 "repo_path": repo_path,
                 "error": "Empty repo path provided"
             }
