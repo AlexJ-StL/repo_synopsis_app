@@ -98,6 +98,11 @@ def process_repo(
     include_options: Dict[str, bool],
     llm_provider: str
 ) -> Dict:
+    if not repo_path:
+            return {
+                "repo_path": repo_path,
+                "error": "Empty repo path provided"
+            }
     repo_data = {"repo_path": repo_path, "files": []}
     try:
         items = traverse_directory(repo_path)
@@ -134,10 +139,7 @@ def process_repo(
         return repo_data
     except Exception as e:
         st.error(f"Error processing repository {repo_path}: {e}")
-        return {
-            "repo_path": repo_path,
-            "error": str(e)
-        }  # Add error key to the dictionary
+        return {"repo_path": repo_path, "error": str(e)}
 
 
 def handle_directory_error(directory_path: str) -> bool:
