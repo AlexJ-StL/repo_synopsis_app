@@ -327,19 +327,34 @@ def test_generate_directory_tree_with_nested_structure(tmp_path):
     assert "file2.py" in tree
 
 
-@patch("streamlit_app.streamlit_app.st.button", return_value=True)
-@patch("streamlit_app.streamlit_app.st.text_input", return_value="/test/path")
+@patch(
+    "streamlit_app.streamlit_app.st.button",
+    return_value=True
+)
+@patch(
+    "streamlit_app.streamlit_app.st.text_input",
+    return_value="/test/path"
+)
 @patch(
     "streamlit_app.streamlit_app.st.multiselect",
     return_value=["test_repo"]
 )
-@patch("streamlit_app.streamlit_app.st.selectbox", return_value="Groq")
+@patch(
+    "streamlit_app.streamlit_app.st.selectbox",
+    return_value="Groq"
+)
 @patch(
     "streamlit_app.streamlit_app.st.checkbox",
     side_effect=[True, True, True, True]
 )
-@patch("streamlit_app.streamlit_app.os.listdir", return_value=["test_repo"])
-@patch("streamlit_app.streamlit_app.os.path.isdir", return_value=True)
+@patch(
+    "streamlit_app.streamlit_app.os.listdir",
+    return_value=["test_repo"]
+)
+@patch(
+    "streamlit_app.streamlit_app.os.path.isdir",
+    return_value=True
+)
 @patch(
     "streamlit_app.streamlit_app.process_repo",
     return_value={"repo_path": "/test/path/test_repo", "files": []}
@@ -348,9 +363,9 @@ def test_generate_directory_tree_with_nested_structure(tmp_path):
 @patch("streamlit_app.streamlit_app.st.success")
 @patch("streamlit_app.streamlit_app.st.warning")
 @patch("streamlit_app.streamlit_app.st.error")
-def test_main_success(  # noqa: PLR0915
-    mocked_st_error,  # Renamed from mock_error
-    mocked_st_warning,  # Renamed from mock_warning
+def test_main_success(
+    mocked_st_error,
+    mocked_st_warning,
     mock_success,
     mock_json_dump,
     mock_process_repo,
@@ -360,21 +375,21 @@ def test_main_success(  # noqa: PLR0915
     _mock_selectbox,
     _mock_multiselect,
     _mock_text_input,
-    _mock_button
+    _mock_button,
 ):
     """Test the main function successfully."""
-    # Configure the mocks
     mocked_st_error.side_effect = lambda msg: None
+    # Suppress Streamlit errors during testing
     mocked_st_warning.side_effect = lambda msg: None
+    # Suppress Streamlit warnings
     mock_success.side_effect = lambda msg: None
+    # Suppress Streamlit success messages
     mock_json_dump.side_effect = lambda data, f, indent: None
+    # Suppress json.dump
 
-    # Run the function being tested
+    # Crucial change: Making sure the function being tested actually runs
     main()
 
-    # Assert the mocks were used as expected
     mock_process_repo.assert_called_once()
     mocked_st_error.assert_not_called()
-    # Add this to verify error wasn't called
     mocked_st_warning.assert_not_called()
-    # Add this to verify warning wasn't called

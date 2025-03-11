@@ -98,7 +98,6 @@ def process_repo(
     include_options: Dict[str, bool],
     llm_provider: str
 ) -> Dict:
-    """Processes a single repository."""
     repo_data = {"repo_path": repo_path, "files": []}
     try:
         items = traverse_directory(repo_path)
@@ -135,7 +134,10 @@ def process_repo(
         return repo_data
     except Exception as e:
         st.error(f"Error processing repository {repo_path}: {e}")
-        return {"repo_path": repo_path, "error": str(e)}
+        return {
+            "repo_path": repo_path,
+            "error": str(e)
+        }  # Add error key to the dictionary
 
 
 def handle_directory_error(directory_path: str) -> bool:
@@ -273,11 +275,11 @@ def save_synopsis(directory_path: str, content: str) -> bool:
 
 def generate_synopsis(
     directory_path: str,
-    include_tree: bool,
-    include_descriptions: bool,
-    include_token_count: bool,
-    include_use_cases: bool,
-    llm_provider: str
+    include_tree: bool = True,  # Add default values
+    include_descriptions: bool = True,
+    include_token_count: bool = True,
+    include_use_cases: bool = True,
+    llm_provider: str = "Gemini",
 ) -> Optional[str]:
     """Generate and save synopsis directly."""
     if not handle_directory_error(directory_path):
