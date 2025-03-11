@@ -333,15 +333,15 @@ def test_generate_directory_tree_with_nested_structure(tmp_path):
 )
 @patch(
     "streamlit_app.streamlit_app.st.text_input",
-    return_value="/test/path"
+    return_value="test_dir"
 )
 @patch(
     "streamlit_app.streamlit_app.st.multiselect",
-    return_value=["test_repo"]
+    return_value=["subdir"]
 )
 @patch(
     "streamlit_app.streamlit_app.st.selectbox",
-    return_value="Groq"
+    return_value="Gemnini"
 )
 @patch(
     "streamlit_app.streamlit_app.st.checkbox",
@@ -349,7 +349,7 @@ def test_generate_directory_tree_with_nested_structure(tmp_path):
 )
 @patch(
     "streamlit_app.streamlit_app.os.listdir",
-    return_value=["test_repo"]
+    return_value=["subdir"]
 )
 @patch(
     "streamlit_app.streamlit_app.os.path.isdir",

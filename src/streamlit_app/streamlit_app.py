@@ -277,7 +277,7 @@ def save_synopsis(directory_path: str, content: str) -> bool:
 
 def generate_synopsis(
     directory_path: str,
-    include_tree: bool = True,  # Add default values
+    include_tree: bool = True,
     include_descriptions: bool = True,
     include_token_count: bool = True,
     include_use_cases: bool = True,
