@@ -366,26 +366,32 @@ def main():
     )
 
     directory_path = st.text_input("Enter directory path:")
-    repo_paths = st.multiselect(
+    repo_paths = []  # Initialize as an empty list
+
+    if directory_path:  # Only populate if directory_path has a value
+        if handle_directory_error(directory_path):
+            repo_paths = [
+                p for p in os.listdir(directory_path)
+                if os.path.isdir(os.path.join(directory_path, p))
+            ]
+        else:
+            repo_paths = []
+    
+    selected_repo_paths = st.multiselect(
         "Select repositories",
-        [p for p in os.listdir(
-            directory_path
-        ) if os.path.isdir(
-            os.path.join(directory_path, p)
-        )], default=[
-            p for p in os.listdir(
-                directory_path
-            ) if os.path.isdir(
-                os.path.join(directory_path, p)
-            )
-        ]
+        repo_paths,
+        default=repo_paths
     )
 
     if st.button("Generate Synopsis"):
+        if not directory_path:
+            st.warning("Please enter a directory path.")
+            return
+        
         if not handle_directory_error(directory_path):
             return
 
-        if not repo_paths:
+        if not selected_repo_paths:
             st.warning("Please select at least one repository.")
             return
 
@@ -398,7 +404,7 @@ def main():
         repo_data = {}
 
         for repo_path in [
-            os.path.join(directory_path, p) for p in repo_paths
+            os.path.join(directory_path, p) for p in selected_repo_paths
         ]:
             repo_data.update({
                 repo_path: process_repo(
