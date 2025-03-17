@@ -3,8 +3,85 @@ import os
 import json
 import datetime
 from typing import Optional, List, Dict, Tuple
+from functools import lru_cache
 from transformers import pipeline
 # You'll need to install transformers: pip install transformers
+
+
+@lru_cache(maxsize=1)
+def get_summarizer():
+    """Initialize and cache the summarization pipeline."""
+    return pipeline(
+        "summarization",
+        model="facebook/bart-large-cnn",
+        device="cpu"  # Explicitly set device
+    )
+
+
+def summarize_text(text: str, max_length: int = 150) -> str:
+    """Summarizes text using a pre-trained summarization model."""
+    if not text:
+        return ""  # Return empty string for empty text
+
+    if len(text.split()) < 30:  # Don't summarize very short texts
+        return text
+
+    # Calculate dynamic max_length
+    input_length = len(text.split())
+    max_length = min(max_length, max(30, input_length // 2))
+    min_length = max(10, max_length // 3)
+
+    try:
+        summarizer = get_summarizer()
+        summary = summarizer(
+            text,
+            max_length=max_length,
+            min_length=min_length,
+            do_sample=False
+        )[0]["summary_text"]
+        return summary
+    except Exception as e:
+        st.error(f"Summarization error: {e}")
+        return text  # Return original text if summarization fails
+    if len(text.split()) < 30:  # Don't summarize very short texts
+        return text
+
+    # Calculate dynamic max_length
+    input_length = len(text.split())
+    max_length = min(max_length, max(30, input_length // 2))
+    min_length = max(10, max_length // 3)
+
+    try:
+        summarizer = get_summarizer()
+        summary = summarizer(
+            text,
+            max_length=max_length,
+            min_length=min_length,
+            do_sample=False
+        )[0]["summary_text"]
+        return summary
+    except Exception as e:
+        st.error(f"Summarization error: {e}")
+        return text  # Return original text if summarization fails
+        return text
+
+    # Calculate dynamic max_length
+    input_length = len(text.split())
+    max_length = min(max_length, max(30, input_length // 2))
+    min_length = max(10, max_length // 3)
+
+    try:
+        summarizer = get_summarizer()
+        summary = summarizer(
+            text,
+            max_length=max_length,
+            min_length=min_length,
+            do_sample=False
+        )[0]["summary_text"]
+        return summary
+    except Exception as e:
+        st.error(f"Summarization error: {e}")
+        return text  # Return original text if summarization fails
 
 
 def traverse_directory(directory_path: str) -> List[str]:
@@ -66,21 +143,6 @@ def get_file_language(file_path: str) -> str:
     return extension_map.get(ext, 'Unknown')
 
 
-def summarize_text(text: str, max_length: int = 150) -> str:
-    """Summarizes text using a pre-trained summarization model."""
-    summarizer = pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn"
-    )  # You can change this model
-    summary = summarizer(
-        text,
-        max_length=max_length,
-        min_length=30,
-        do_sample=False
-    )[0]["summary_text"]
-    return summary
-
-
 def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
     """Simplified LLM response (placeholder - replace with actual API call)."""
     try:
@@ -97,7 +159,7 @@ def process_repo(
     repo_path: str,
     include_options: Dict[str, bool],
     llm_provider: str
-) -> Dict:
+) -> Dict[str, object]:
     if not repo_path:
         return {
                 "repo_path": repo_path,
@@ -376,7 +438,7 @@ def main():
             ]
         else:
             repo_paths = []
-    
+
     selected_repo_paths = st.multiselect(
         "Select repositories",
         repo_paths,
@@ -387,7 +449,7 @@ def main():
         if not directory_path:
             st.warning("Please enter a directory path.")
             return
-        
+
         if not handle_directory_error(directory_path):
             return
 
