@@ -1,20 +1,23 @@
-"""This is the testing file for repo_synopsis"""
+"""Testing file for the Streamlit repository synopsis application."""
+
 import os
-import sys
 import shutil
-# Standard library imports
-from unittest.mock import patch
 from pathlib import Path
-from typing import NamedTuple
+from typing import Dict, Any, NamedTuple
+from unittest.mock import patch, MagicMock
 
 # Third party imports
-import streamlit as st
 import pytest
+import streamlit as st
+
 # Local application imports
+# Ensure functions are imported *after* potential sys.path modifications if needed,
+# though direct relative imports are usually preferred if structure allows.
+# Assuming streamlit_app is adjacent or PYTHONPATH is set correctly
 from streamlit_app.streamlit_app import (
     handle_directory_error,
     save_synopsis,
-    generate_synopsis,
+    # generate_synopsis, # Removed as the function structure changed
     log_event,
     main,
     traverse_directory,
@@ -23,118 +26,198 @@ from streamlit_app.streamlit_app import (
     get_llm_response,
     process_repo,
     summarize_text,
+    RepoData, # Import the TypedDict
+    generate_synopsis_text # Import the new text generation function
 )
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# --- Test Fixtures and Mocks ---
+
+@pytest.fixture(autouse=True)
+def suppress_streamlit_output(monkeypatch):
+    """Automatically mock streamlit UI functions to prevent actual UI calls."""
+    monkeypatch.setattr(st, "error", MagicMock())
+    monkeypatch.setattr(st, "warning", MagicMock())
+    monkeypatch.setattr(st, "info", MagicMock())
+    monkeypatch.setattr(st, "success", MagicMock())
+    monkeypatch.setattr(st, "progress", MagicMock(return_value=MagicMock())) # Mock progress bar object
+    monkeypatch.setattr(st, "empty", MagicMock(return_value=MagicMock())) # Mock empty placeholder
+    monkeypatch.setattr(st, "markdown", MagicMock())
+    monkeypatch.setattr(st, "expander", MagicMock()) # Mock expander
+    # Mock sidebar elements if needed for specific tests, but often mocking
+    # the functions that *use* the sidebar values is sufficient.
+    # monkeypatch.setattr(st.sidebar, "checkbox", MagicMock(return_value=True))
+    # monkeypatch.setattr(st.sidebar, "selectbox", MagicMock(return_value="Groq"))
+    # monkeypatch.setattr(st.sidebar, "text_input", MagicMock(return_value="."))
 
 
-def mock_error(_msg):
-    """Mock function to simulate error logging."""
+# Define a default filename used in save_synopsis tests
+DEFAULT_SYNOPSIS_FILENAME = "synopsis_test.txt"
 
+# --- Test Functions ---
 
-def test_handle_directory_error_empty_path(monkeypatch):
+def test_handle_directory_error_empty_path():
     """Test handle_directory_error with an empty path."""
-    monkeypatch.setattr(st, "error", mock_error)
     assert handle_directory_error("") is False
 
 
-def test_handle_directory_error_valid_path(tmp_path):
+def test_handle_directory_error_valid_path(tmp_path: Path):
     """Test handle_directory_error with a valid path."""
-
     assert handle_directory_error(str(tmp_path)) is True
 
 
-def test_handle_directory_error_nonexistent_path(monkeypatch):
+def test_handle_directory_error_nonexistent_path():
     """Test handle_directory_error with a nonexistent path."""
-    monkeypatch.setattr(st, "error", mock_error)
-    assert handle_directory_error("/nonexistent/path") is False
+    assert handle_directory_error("/nonexistent/path/hopefully") is False
 
 
-def test_handle_directory_error_os_error(tmp_path, monkeypatch):
-    """Test handle_directory_error with an OSError."""
+def test_handle_directory_error_os_error(tmp_path: Path):
+    """Test handle_directory_error with an OSError during listdir."""
     with patch("os.listdir", side_effect=OSError("Simulated OSError")):
-        monkeypatch.setattr(st, "error", mock_error)
         assert handle_directory_error(str(tmp_path)) is False
 
 
-def test_handle_directory_error_permission_error(tmp_path, monkeypatch):
-    """Test handle_directory_error with a permission error."""
+def test_handle_directory_error_permission_error(tmp_path: Path):
+    """Test handle_directory_error with a permission error during listdir."""
     with patch("os.listdir", side_effect=PermissionError("Permission denied")):
-        monkeypatch.setattr(st, "error", mock_error)
         assert handle_directory_error(str(tmp_path)) is False
 
 
-def test_save_synopsis_success(tmp_path, monkeypatch):
+def test_handle_directory_error_not_a_directory(tmp_path: Path):
+    """Test handle_directory_error when the path is a file, not a directory."""
+    test_file = tmp_path / "test_file.txt"
+    test_file.write_text("content")
+    assert handle_directory_error(str(test_file)) is False
+
+
+def test_save_synopsis_success(tmp_path: Path):
     """Test save_synopsis with a successful save."""
-    monkeypatch.setattr(st, "success", lambda msg: None)
-    assert save_synopsis(str(tmp_path), "test content") is True
+    # Mock handle_directory_error to always return True for this test
+    with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True):
+        assert save_synopsis(str(tmp_path), "test content", DEFAULT_SYNOPSIS_FILENAME) is True
+        assert (tmp_path / DEFAULT_SYNOPSIS_FILENAME).exists()
+        assert (tmp_path / DEFAULT_SYNOPSIS_FILENAME).read_text() == "test content"
 
 
-def test_log_event_success(tmp_path):
+def test_save_synopsis_empty_content(tmp_path: Path):
+    """Test save_synopsis when the content is empty."""
+    # Mock handle_directory_error to always return True for this test
+    with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True):
+        assert save_synopsis(str(tmp_path), "", DEFAULT_SYNOPSIS_FILENAME) is False
+
+
+def test_save_synopsis_ioerror(tmp_path: Path):
+    """Test save_synopsis with an IOError during open."""
+    # Mock handle_directory_error to always return True for this test
+    with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True):
+        with patch("builtins.open", side_effect=IOError("Simulated IOError")):
+            assert save_synopsis(str(tmp_path), "Test", DEFAULT_SYNOPSIS_FILENAME) is False
+
+
+def test_save_synopsis_invalid_dir(tmp_path: Path):
+    """Test save_synopsis when the directory is invalid."""
+    # Rely on the actual handle_directory_error check within save_synopsis
+    assert save_synopsis("/nonexistent/path", "Test", DEFAULT_SYNOPSIS_FILENAME) is False
+
+
+def test_log_event_success(tmp_path: Path):
     """Test log_event with a successful log."""
     log_event(str(tmp_path), "test message")
-    log_file = os.path.join(str(tmp_path), "event_log.txt")
+    log_file = tmp_path / "event_log.txt"
+    assert log_file.exists()
     with open(log_file, "r", encoding="utf-8") as file:
         content = file.read()
         assert "test message" in content
 
 
-def test_log_event_failure(tmp_path, monkeypatch):
-    """Test log_event with a failed log due to IOError."""
-    monkeypatch.setattr(st, "error", mock_error)
+def test_log_event_failure(tmp_path: Path):
+    """Test log_event recovers gracefully from an IOError during open."""
+    # We expect it to print an error, not raise the IOError
     with patch("builtins.open", side_effect=IOError("Simulated IO Error")):
-        log_event(str(tmp_path), "test message")
+        # Should not raise an exception
+        log_event(str(tmp_path), "test message that fails to write")
 
 
-def test_generate_synopsis_invalid_directory(monkeypatch):
-    """Test generate_synopsis with an invalid directory."""
-    monkeypatch.setattr(st, "error", mock_error)
-    assert generate_synopsis("", True, True, True, True, "Groq") is None
+# --- Tests for generate_synopsis_text (New Function) ---
+# It's recommended to add tests for generate_synopsis_text similar to how
+# the old generate_synopsis was tested, but passing RepoData as input.
+
+@pytest.fixture
+def sample_repo_data() -> RepoData:
+    """Provides a sample RepoData structure for testing."""
+    return {
+        "repo_path": "/fake/repo",
+        "files": [
+            {
+                "path": "/fake/repo/file1.py",
+                "language": "Python",
+                "token_count": 10,
+                "description": "A python file.",
+                "use_case": "Core Logic"
+            },
+            {
+                "path": "/fake/repo/subdir/file2.js",
+                "language": "JavaScript",
+                "token_count": 25,
+                "description": "Some javascript.",
+                "use_case": "Utility"
+            }
+        ],
+        "languages": ["Python", "JavaScript"],
+        "error": None
+    }
+
+@patch("streamlit_app.streamlit_app.generate_directory_tree")
+def test_generate_synopsis_text_all_options(
+    mock_generate_tree: MagicMock,
+    sample_repo_data: RepoData):
+    """Test generate_synopsis_text includes all parts when requested."""
+    mock_generate_tree.return_value = "Mock Tree"
+    result = generate_synopsis_text(sample_repo_data, include_tree=True, directory_path="/fake/repo")
+
+    assert "Languages used: Python, JavaScript" in result
+    assert "## Directory Tree" in result
+    assert "Mock Tree" in result
+    assert "## File Details" in result
+    assert "File: `/fake/repo/file1.py` (Python)" in result
+    assert "Token Count:** 10" in result
+    assert "Description:** A python file." in result
+    assert "Use Case:** Core Logic" in result
+    assert "File: `/fake/repo/subdir/file2.js` (JavaScript)" in result
 
 
-def test_generate_synopsis_empty_directory(tmp_path, monkeypatch):
-    """Test generate_synopsis with an empty directory."""
-    monkeypatch.setattr(st, "error", mock_error)
-    result = generate_synopsis(
-        str(tmp_path),
-        True,
-        True,
-        True,
-        True,
-        "Groq"
-    )
-    assert result == ""  # Assert that an empty string is returned
+@patch("streamlit_app.streamlit_app.generate_directory_tree")
+def test_generate_synopsis_text_no_tree(
+    mock_generate_tree: MagicMock,
+    sample_repo_data: RepoData):
+    """Test generate_synopsis_text excludes tree when requested."""
+    result = generate_synopsis_text(sample_repo_data, include_tree=False, directory_path="/fake/repo")
+
+    assert "## Directory Tree" not in result
+    assert "Mock Tree" not in result
+    mock_generate_tree.assert_not_called()
+    assert "## File Details" in result # Details should still be present
 
 
-def test_generate_synopsis_no_items(tmp_path, monkeypatch):
-    """Test generate_synopsis when no items are found."""
-    monkeypatch.setattr(st, "error", mock_error)  # Mock Streamlit warnings
-    result = generate_synopsis(
-        str(tmp_path),
-        True,
-        False,
-        False,
-        False,
-        "Groq"
-    )
-    assert result == ""  # Assert that an empty string is returned
+def test_generate_synopsis_text_no_files() -> None:
+    """Test generate_synopsis_text with empty files list."""
+     # Create RepoData with no files
+    empty_repo_data: RepoData = {
+        "repo_path": "/fake/empty",
+        "files": [],
+        "languages": ["Python"], # Still has language info
+        "error": None
+    }
+    with patch("streamlit_app.streamlit_app.generate_directory_tree", return_value="Mock Tree"):
+         result = generate_synopsis_text(empty_repo_data, include_tree=True, directory_path="/fake/empty")
+
+    assert "Languages used: Python" in result
+    assert "## Directory Tree" in result
+    assert "## File Details" not in result # No file details section
 
 
-def test_generate_synopsis_all_options_false(tmp_path, monkeypatch):
-    """Test generate_synopsis with all options set to False."""
-    monkeypatch.setattr(st, "error", mock_error)
-    result = generate_synopsis(
-        str(tmp_path),
-        False,
-        False,
-        False,
-        False,
-        "Groq"
-    )
-    assert result is not None  # Should still produce an empty synopsis
+# --- Tests for Remaining Helper Functions ---
 
-
-def test_traverse_directory(tmp_path):
+def test_traverse_directory(tmp_path: Path):
     """Test traverse_directory with files and subdirectories."""
     file1 = tmp_path / "test1.txt"
     file1.write_text("content")
@@ -144,472 +227,371 @@ def test_traverse_directory(tmp_path):
     file2.write_text("content")
 
     items = traverse_directory(str(tmp_path))
-    assert len(items) == 2
-    assert any("test1.txt" in item for item in items)
-    assert any("test2.txt" in item for item in items)
+    # Normalize paths for reliable comparison
+    expected_paths = {
+        os.path.normpath(str(file1)),
+        os.path.normpath(str(file2))
+    }
+    assert set(map(os.path.normpath, items)) == expected_paths
 
 
-def test_traverse_directory_empty(tmp_path):
+def test_traverse_directory_empty(tmp_path: Path):
     """Test traverse_directory with an empty directory."""
-    empty_dir = tmp_path / "empty_dir"
-    empty_dir.mkdir()
-    result = traverse_directory(str(empty_dir))
+    result = traverse_directory(str(tmp_path))
     assert not result
 
 
 def test_traverse_directory_error():
-    """Test traverse_directory with an OSError."""
+    """Test traverse_directory returns empty list on OSError."""
     with patch("os.walk", side_effect=OSError("Simulated OSError")):
         items = traverse_directory("/fake/path")
-        assert not items
+        assert items == [] # Should return empty list, not raise
 
 
-def test_generate_directory_tree(tmp_path):
-    """Test generate_directory_tree with a
-    directory containing files and subdirectories."""
+def test_generate_directory_tree(tmp_path: Path):
+    """Test generate_directory_tree basic structure."""
     file1 = tmp_path / "test1.txt"
     file1.write_text("content")
     subdir = tmp_path / "subdir"
     subdir.mkdir()
     file2 = subdir / "test2.txt"
     file2.write_text("content")
+    empty_subdir = tmp_path / "empty_subdir"
+    empty_subdir.mkdir()
 
     tree = generate_directory_tree(str(tmp_path))
-    assert "test1.txt" in tree
-    assert "subdir" in tree
-    assert "test2.txt" in tree
+    print(tree) # For debugging test failures
+    assert "  test1.txt" in tree # File at root level
+    assert "subdir/" in tree # Subdir name
+    assert "  test2.txt" in tree # File in subdir
+    assert "empty_subdir/" in tree # Empty subdir name
+    # Check indentation levels implicitly by checking content order/presence
 
 
 def test_generate_directory_tree_with_error():
-    """Test generate_directory_tree with an OSError."""
+    """Test generate_directory_tree returns error message on OSError."""
     with patch("os.walk", side_effect=OSError("Permission denied")):
         tree = generate_directory_tree("/fake/path")
-        assert tree == ""
+        assert "Error generating tree: Permission denied" in tree
 
 
-def test_summarize_text():
-    """Test the text summarization function."""
-    text = """This is a long piece of text that
-    needs to be summarized. It contains multiple
-    sentences and should be made shorter by the
-    summarization function. The summary should capture
-    the main points while reducing the overall length."""
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_success(mock_get_summarizer: MagicMock):
+    """Test the text summarization function success path."""
+    # Mock the pipeline object and its call
+    mock_pipeline = MagicMock(return_value=[{"summary_text": "Short summary."}])
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = ("This is a long piece of text that needs to be summarized. "
+            "It contains multiple sentences and should be made shorter. " * 5)
     summary = summarize_text(text)
-    assert len(summary) < len(text)  # Check for length reduction
-    assert "summarized" in summary.lower()  # Check for content
+
+    assert summary == "Short summary."
+    mock_pipeline.assert_called_once()
+
+
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_too_short(mock_get_summarizer: MagicMock):
+    """Test summarize_text returns empty string for short text."""
+    text = "This text is too short."
+    summary = summarize_text(text)
+    assert summary == "" # Changed behavior: returns empty string now
+    mock_get_summarizer.assert_not_called()
+
+
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_pipeline_error(mock_get_summarizer: MagicMock):
+    """Test summarize_text returns empty string on pipeline error."""
+    mock_pipeline = MagicMock(side_effect=Exception("Pipeline crashed"))
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = "This text will cause an error during summarization." * 5
+    summary = summarize_text(text)
+    assert summary == ""
+
+
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_unexpected_output(mock_get_summarizer: MagicMock):
+    """Test summarize_text returns empty string on unexpected pipeline output."""
+    mock_pipeline = MagicMock(return_value="just a string") # Invalid output
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = "This text gets an unexpected output format." * 5
+    summary = summarize_text(text)
+    assert summary == ""
 
 
 def test_get_file_language_known():
     """Test get_file_language with known extensions."""
     assert get_file_language("my_file.py") == "Python"
     assert get_file_language("script.js") == "JavaScript"
-    assert get_file_language("data.json") == "JSON"
+    assert get_file_language("Data.JSON") == "JSON" # Test case insensitivity
+    assert get_file_language("README.md") == "Markdown"
+    assert get_file_language("Dockerfile") == "Dockerfile" # Test basename
 
 
 def test_get_file_language_unknown():
     """Test get_file_language with unknown extensions."""
-    assert get_file_language("mystery.xyz") == "Unknown"
-
-
-def test_get_file_language():
-    """Test get_file_language with various file extensions."""
-    assert get_file_language("test.py") == "Python"
-    assert get_file_language("test.unknown") == "Unknown"
-    assert get_file_language("test.cs") == "C#"
-    assert get_file_language("test.m") == "Objective-C"
-    assert get_file_language("test.java") == "Java"
-    assert get_file_language("test.go") == "Go"
+    assert get_file_language("mystery.xyz") == "Other" # Default changed to 'Other'
+    assert get_file_language("no_extension") == "Other"
 
 
 @patch("streamlit_app.streamlit_app.summarize_text")
-def test_get_llm_response(mock_summarize, tmp_path):
-    """Test get_llm_response."""
+def test_get_llm_response_success(mock_summarize: MagicMock, tmp_path: Path):
+    """Test get_llm_response success path."""
     file_path = tmp_path / "test.txt"
     file_path.write_text("Sample text content")
-
     mock_summarize.return_value = "Summarized text"
 
     description, use_case = get_llm_response(str(file_path), "Groq")
 
     assert description == "Summarized text"
-    assert use_case == "Placeholder use case"
+    assert use_case == "Core Logic/Component" # Default use case
+    mock_summarize.assert_called_once_with("Sample text content")
 
 
-def test_get_llm_response_error(tmp_path):
-    """Test get_llm_response with an IOError."""
+def test_get_llm_response_file_not_found():
+    """Test get_llm_response when file doesn't exist."""
+    description, use_case = get_llm_response("/non/existent/file.py", "Groq")
+    assert "Error: File not found" in description
+    assert "Error: File not found" in use_case
+
+
+def test_get_llm_response_read_error(tmp_path: Path):
+    """Test get_llm_response with an error during file read."""
     file_path = tmp_path / "test.txt"
-    with patch("builtins.open", side_effect=IOError("Simulated IO Error")):
+    # No write_text to simulate potential read issue, or mock open
+    with patch("builtins.open", side_effect=IOError("Simulated Read Error")):
         description, use_case = get_llm_response(str(file_path), "Groq")
-        assert "Error" in description
-        assert "Error" in use_case
+        assert "Error reading file: Simulated Read Error" in description
+        assert "Error: Simulated Read Error" in use_case
 
 
-def test_process_repo_success(tmp_path, monkeypatch):
-    """Test process_repo successfully."""
+@patch("streamlit_app.streamlit_app.summarize_text")
+def test_get_llm_response_summarize_error(mock_summarize: MagicMock, tmp_path: Path):
+    """Test get_llm_response when summarization returns empty string (error)."""
+    file_path = tmp_path / "test.txt"
+    file_path.write_text("Sample text content")
+    mock_summarize.return_value = "" # Simulate summarization error/empty result
+
+    description, use_case = get_llm_response(str(file_path), "Groq")
+
+    assert description == "" # Should pass through the empty description
+    assert use_case == "Core Logic/Component"
+    mock_summarize.assert_called_once()
+
+
+# --- process_repo Tests ---
+
+# Define default options used in process_repo tests
+DEFAULT_INCLUDE_OPTIONS = {
+    "token_count": True,
+    "descriptions": True,
+    "use_cases": True
+}
+
+@patch("streamlit_app.streamlit_app.get_llm_response")
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
+def test_process_repo_success(
+    mock_handle_dir: MagicMock,
+    mock_get_llm: MagicMock,
+    tmp_path: Path):
+    """Test process_repo successfully processes a file."""
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    (repo_path / "file1.py").write_text("print('hello')")
-    include_options = {
-        "token_count": True,
-        "descriptions": True,
-        "use_cases": True
-    }
-    monkeypatch.setattr(
-        "streamlit_app.streamlit_app.get_llm_response",
-        lambda *args: ("desc", "use")
-    )
-    repo_data = process_repo(str(repo_path), include_options, "Groq")
-    assert "files" in repo_data
+    (repo_path / "file1.py").write_text("print('hello world')") # 2 words
+    mock_get_llm.return_value = ("Mock description", "Mock use case")
+
+    repo_data = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+    mock_handle_dir.assert_called_once_with(str(repo_path))
+    mock_get_llm.assert_called_once()
+    assert repo_data.get("error") is None
     assert len(repo_data["files"]) == 1
-    assert repo_data["files"][0]["language"] == "Python"
+    file_info = repo_data["files"][0]
+    # Use .get() for potentially missing keys or assert their presence if guaranteed by test setup
+    assert file_info.get("language") == "Python"
+    assert file_info.get("token_count") == 2
+    assert file_info.get("description") == "Mock description"
+    assert file_info.get("use_case") == "Mock use case"
+    assert repo_data.get("languages") == ["Python"]
 
 
-def test_process_repo_error(tmp_path, monkeypatch):
-    """Test process_repo with an error."""
-    repo_path = tmp_path / "test_repo"
-    repo_path.mkdir()
-    (repo_path / "file1.py").write_text("print('hello')")
-    include_options = {
-        "token_count": True,
-        "descriptions": True,
-        "use_cases": True
-    }
-    monkeypatch.setattr(
-        "streamlit_app.streamlit_app.get_llm_response",
-        lambda *args: ("desc", "use")
-    )
-    monkeypatch.setattr(st, "error", mock_error)
-    with patch("os.walk", side_effect=OSError("Simulated OSError")):
-        repo_data = process_repo(str(repo_path), include_options, "Groq")
-        assert "error" not in repo_data
-
-
-def test_process_repo_empty_repo(monkeypatch):
-    """Test processing empty repositories"""
-    monkeypatch.setattr(st, "error", mock_error)
-    result = process_repo(
-        "",
-        {
-            "token_count": False,
-            "descriptions": False,
-            "use_cases": False
-        },
-        "Groq"
-    )
-    assert "error" in result
-    assert result["error"] == "Empty repo path provided"
-
-
-def test_process_repo_no_files(tmp_path, monkeypatch):
-    """Test when a directory is given with no files"""
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
+def test_process_repo_no_files(mock_handle_dir: MagicMock, tmp_path: Path):
+    """Test process_repo with an empty directory."""
     repo_path = tmp_path / "empty_repo"
     repo_path.mkdir()
-    monkeypatch.setattr(st, "error", mock_error)
-    result = process_repo(
-        str(repo_path),
-        {
-            "token_count": False,
-            "descriptions": False,
-            "use_cases": False
-        },
-        "Groq"
-    )
-    assert "files" in result
-    assert len(result["files"]) == 0
+
+    repo_data = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+    mock_handle_dir.assert_called_once_with(str(repo_path))
+    assert repo_data.get("error") is None
+    assert len(repo_data["files"]) == 0
+    assert repo_data["languages"] == []
 
 
-def test_process_repo_unknown_language(tmp_path, monkeypatch):
-    """Test process_repo when an unknown file type is encountered."""
+def test_process_repo_invalid_dir():
+    """Test process_repo when the initial directory check fails."""
+    # handle_directory_error is mocked globally to return True by default,
+    # so we patch it specifically for this test to return False.
+    with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=False) as mock_handle_dir:
+        repo_data = process_repo("/invalid/path", DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+        mock_handle_dir.assert_called_once_with("/invalid/path")
+        # Check error field safely
+        error_msg = repo_data.get("error")
+        assert error_msg is not None
+        assert "Invalid or inaccessible directory" in error_msg
+        assert repo_data.get("files") == []
+        assert repo_data.get("languages") is None
+
+
+@patch("streamlit_app.streamlit_app.traverse_directory", side_effect=Exception("Traversal Error"))
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
+def test_process_repo_traversal_error(mock_handle_dir: MagicMock, mock_traverse: MagicMock, tmp_path: Path):
+    """Test process_repo when os.walk (via traverse_directory) fails."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir() # Directory needs to exist for initial check
+
+    repo_data = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+    mock_handle_dir.assert_called_once_with(str(repo_path))
+    mock_traverse.assert_called_once_with(str(repo_path))
+    # Check error field safely
+    error_msg = repo_data.get("error")
+    assert error_msg is not None
+    assert "Unexpected processing error: Traversal Error" in error_msg
+    assert repo_data.get("files") == []
+    assert repo_data.get("languages") is None
+
+
+@patch("builtins.open", side_effect=IOError("Read Error"))
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
+def test_process_repo_file_read_error_token(mock_handle_dir: MagicMock, mock_open: MagicMock, tmp_path: Path):
+    """Test process_repo handles file read error during token counting."""
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    (repo_path / "file1.xyz").write_text("content")
-    include_options = {
-        "token_count": False,
-        "descriptions": False,
-        "use_cases": False
-    }
-    repo_data = process_repo(str(repo_path), include_options, "Groq")
-    assert "files" in repo_data
+    (repo_path / "file1.py").touch() # Create file
+
+    options = {"token_count": True, "descriptions": False, "use_cases": False}
+    repo_data = process_repo(str(repo_path), options, "Groq")
+
+    assert repo_data.get("error") is None # No error at the repo level
     assert len(repo_data["files"]) == 1
-    assert repo_data["files"][0]["language"] == "Unknown"
+    file_info = repo_data["files"][0]
+    # Use .get() for potentially missing keys
+    assert file_info.get("description") == "LLM Error description"
+    assert file_info.get("use_case") == "LLM Error use case"
+    # Assert required keys are present
+    assert file_info.get("language") == "Python"
+    # builtins.open would be called by process_repo for token count
 
 
-def test_process_repo_file_read_error(tmp_path, monkeypatch):
-    """Test process_repo when file reading fails."""
+@patch("streamlit_app.streamlit_app.get_llm_response", side_effect=Exception("LLM Error"))
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
+def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicMock, tmp_path: Path):
+    """Test process_repo continues if get_llm_response fails for one file."""
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    file_path = repo_path / "file1.py"
-    file_path.touch()  # Create file without content
-    include_options = {
-        "token_count": True,
-        "descriptions": False,
-        "use_cases": False
-    }
+    (repo_path / "file1.py").write_text("print('hello')")
 
-    # Mock the built-in 'open' function to raise an IOError
-    with patch('builtins.open', side_effect=IOError("Simulated IOError")):
-        repo_data = process_repo(str(repo_path), include_options, "Groq")
+    # We expect get_llm_response to be called, raise an error, but the overall
+    # process_repo should still complete and return data for the file.
+    # The error handling is *within* get_llm_response itself now.
+    # Let's redefine get_llm_response mock to return error strings
+    mock_get_llm.side_effect = None # Clear previous side_effect
+    mock_get_llm.return_value = ("LLM Error description", "LLM Error use case")
 
-    assert "files" in repo_data
+    repo_data = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+    assert repo_data.get("error") is None # No error at the repo level
     assert len(repo_data["files"]) == 1
-    assert repo_data["files"][0]["token_count"] == "Unable to read file"
+    file_info = repo_data["files"][0]
+    error_msg = repo_data.get("error")
+    assert error_msg is not None
+    assert "Unexpected processing error: LLM error" in error_msg
+    assert file_info.get("description") == "LLM Error description" # Error captured by get_llm_response
+    assert file_info.get("use_case") == "LLM Error use case"
 
 
-def test_save_synopsis_with_content(tmp_path):
-    """Test saving synopsis with content."""
-    synopsis_content = "This is the synopsis content."
-    result = save_synopsis(str(tmp_path), synopsis_content)
-    assert result is True
-    synopsis_file = tmp_path / "synopsis.txt"
-    assert synopsis_file.exists()
-    assert synopsis_file.read_text() == synopsis_content
+# --- main Function Test (Simplified) ---
 
+# Note: Testing the full Streamlit UI flow with button clicks, session state,
+# and dynamic updates typically requires streamlit.testing.AppTest.
+# This test focuses on the core logic path triggered by the button press.
 
-def test_save_synopsis_empty_content(tmp_path, monkeypatch):
-    """Test save_synopsis when the content is empty."""
-    monkeypatch.setattr(st, "error", mock_error)
-    result = save_synopsis(str(tmp_path), "")
-    assert result is False
+@patch("streamlit_app.streamlit_app.st.button", return_value=True) # Simulate button press
+@patch("streamlit_app.streamlit_app.st.session_state", new_callable=MagicMock) # Mock session state
+@patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True) # Assume valid dir
+@patch("streamlit_app.streamlit_app.process_repo") # Mock the core processing
+@patch("streamlit_app.streamlit_app.save_synopsis", return_value=True) # Assume saving works
+@patch("streamlit_app.streamlit_app.log_event") # Mock logging
+@patch("builtins.open") # Mock file opening for JSON dump and download
+@patch("streamlit_app.streamlit_app.json.dump") # Mock JSON writing
+@patch("streamlit_app.streamlit_app.generate_synopsis_text", return_value="Synopsis Text") # Mock text gen
+@patch("streamlit_app.streamlit_app.st.download_button") # Mock download buttons
+def test_main_processing_logic(
+    mock_download_button: MagicMock,
+    mock_gen_text: MagicMock,
+    mock_json_dump: MagicMock,
+    mock_open: MagicMock,
+    mock_log: MagicMock,
+    mock_save: MagicMock,
+    mock_process: MagicMock,
+    mock_handle_dir: MagicMock,
+    mock_session_state: MagicMock,
+    mock_st_button: MagicMock,
+    tmp_path: Path # Use tmp_path for base directory
+    ):
+    """Test the main logic path after the 'Generate' button is pressed."""
 
+    # --- Setup Mocks and State ---
+    base_dir = str(tmp_path)
+    repo_name = "my_repo"
+    full_repo_path = os.path.join(base_dir, repo_name)
+    os.makedirs(full_repo_path, exist_ok=True) # Create dummy repo dir
 
-def test_save_synopsis_ioerror(tmp_path, monkeypatch):
-    """Test save_synopsis with an IOError."""
-    monkeypatch.setattr(st, "error", mock_error)
-    with patch("builtins.open", side_effect=IOError("Simulated IOError")):
-        result = save_synopsis(str(tmp_path), "Test")
-        assert result is False
+    # Simulate UI state needed *after* button press
+    # We need to mock access to st.session_state AFTER the button is checked
+    mock_session_state.repo_select = [repo_name] # Simulate repo selected
 
-
-def test_handle_directory_error_not_a_directory(tmp_path, monkeypatch):
-    """Test handle_directory_error when the path is not a directory."""
-    test_file = tmp_path / "test_file.txt"
-    test_file.write_text("content")
-    monkeypatch.setattr(st, "error", mock_error)
-    result = handle_directory_error(str(test_file))
-    assert result is False
-
-
-def test_handle_directory_error_invalid_path(monkeypatch):
-    """Test invalid path scenarios"""
-    monkeypatch.setattr(st, "error", mock_error)
-    assert handle_directory_error("nonexistent_path") is False
-    assert handle_directory_error("/this/is/also/bad") is False
-    # Test other cases
-
-
-def test_handle_directory_error_file_path(tmp_path, monkeypatch):
-    """Test file path scenarios"""
-    file_path = tmp_path / "a_file.txt"
-    file_path.touch()
-    monkeypatch.setattr(st, "error", mock_error)
-    assert handle_directory_error(str(file_path)) is False
-
-
-def test_handle_directory_error_no_permission(tmp_path, monkeypatch):
-    """Test handle_directory_error when permission is denied."""
-    test_dir = tmp_path / "testdir"
-    test_dir.mkdir()
-
-    # Mock os.listdir to raise PermissionError
-    monkeypatch.setattr(
-        "os.listdir",
-        lambda _: (_ for _ in ()).throw(PermissionError("Permission denied"))
-    )
-    monkeypatch.setattr(st, "error", mock_error)
-
-    assert handle_directory_error(str(test_dir)) is False
-
-
-def test_handle_directory_error_file_exists(tmp_path, monkeypatch):
-    """Test handle_directory_error when file exists."""
-    test_file = tmp_path / "test_file.txt"
-    test_file.touch()
-    monkeypatch.setattr(st, "error", mock_error)
-    assert handle_directory_error(str(test_file)) is False
-
-
-class SynopsisTestCase(NamedTuple):
-    """Test case structure for generate_synopsis tests."""
-    include_tree: bool
-    include_descriptions: bool
-    include_token_count: bool
-    include_use_cases: bool
-    expected_result: bool
-
-
-@pytest.mark.parametrize(
-    "test_case",
-    [
-        SynopsisTestCase(
-            include_tree=True,
-            include_descriptions=False,
-            include_token_count=False,
-            include_use_cases=False,
-            expected_result=True
-        ),  # Tree only
-        SynopsisTestCase(
-            include_tree=False,
-            include_descriptions=True,
-            include_token_count=True,
-            include_use_cases=True,
-            expected_result=True
-        ),  # All details, no tree
-        SynopsisTestCase(
-            include_tree=False,
-            include_descriptions=False,
-            include_token_count=False,
-            include_use_cases=False,
-            expected_result=False
-        ),  # No content
-    ]
-)
-def test_generate_synopsis_various_options(
-    tmp_path,
-    monkeypatch,
-    test_case: SynopsisTestCase
-):
-    """Test generate_synopsis with various options."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text("print('hello')")
-
-    monkeypatch.setattr(st, "error", lambda msg: None)
-    monkeypatch.setattr(
-        "streamlit_app.streamlit_app.get_llm_response",
-        lambda *args: ("desc", "use")
+    # Mock return value for process_repo
+    mock_process.return_value = RepoData(
+        repo_path=full_repo_path, files=[], languages=[], error=None
     )
 
-    result = generate_synopsis(
-        str(tmp_path),
-        include_tree=test_case.include_tree,
-        include_descriptions=test_case.include_descriptions,
-        include_token_count=test_case.include_token_count,
-        include_use_cases=test_case.include_use_cases,
-        llm_provider="Groq"
-    )
+    # --- Mock Sidebar/Config values needed by main ---
+    # Use patch.dict for st.session_state if mocking individual keys/widgets
+    # Or directly set attributes on the MagicMock as done above for repo_select
+    with patch.dict(st.session_state, {
+        'base_dir': base_dir, # Simulate text input value
+        'inc_tree': True,
+        'inc_desc': True,
+        'inc_token': True,
+        'inc_use': True,
+        'llm_select': 'Groq',
+        'repo_select': [repo_name] # Ensure it's set before main() is called
+    }):
+        # --- Execute ---
+        main() # Call the main function
 
-    assert (result is not None) == test_case.expected_result
+    # --- Assertions ---
+    # Check if core functions were called
+    mock_handle_dir.assert_called() # Called for base_dir validation
+    mock_st_button.assert_called_with("Generate", key="generate_button", type="primary")
+    mock_process.assert_called_once()
+    # Check args of process_repo if necessary:
+    call_args, call_kwargs = mock_process.call_args
+    assert call_args[0] == full_repo_path # Check repo path arg
+    assert call_args[1]['descriptions'] is True # Check options passed
 
+    # Check if output generation/saving was attempted
+    mock_gen_text.assert_called_once()
+    mock_save.assert_called() # Called for the .md file
+    mock_json_dump.assert_called_once() # Called for the .json file
+    mock_log.assert_called() # Check if logging happened
 
-def test_generate_synopsis_with_multiple_files(tmp_path, monkeypatch):
-    """Test generate_synopsis with multiple files."""
-    test_dir = tmp_path / "test_repo"
-    test_dir.mkdir()
-    (test_dir / "file1.py").write_text("print('hello')")
-    (test_dir / "file2.py").write_text("class Test: pass")
-    monkeypatch.setattr(st, "error", mock_error)
-    monkeypatch.setattr(
-        "streamlit_app.streamlit_app.get_llm_response",
-        lambda *args: ("desc", "use")
-    )
-    result = generate_synopsis(str(test_dir), True, True, True, True, "Groq")
-    assert result is not None
+    # Check download buttons were called
+    assert mock_download_button.call_count == 2 # One for md, one for json
 
-
-def test_traverse_directory_with_nested_structure(tmp_path):
-    """Test traverse_directory with a nested directory structure."""
-    root = tmp_path / "root"
-    root.mkdir()
-    (root / "file1.py").write_text("content1")
-    sub_dir = root / "subdir"
-    sub_dir.mkdir()
-    (sub_dir / "file2.py").write_text("content2")
-
-    files = traverse_directory(str(root))
-    assert len(files) == 2
-    assert any("file1.py" in f for f in files)
-    assert any("file2.py" in f for f in files)
-
-
-def test_generate_directory_tree_with_nested_structure(tmp_path):
-    """Test generate_directory_tree with a nested directory structure."""
-    root = tmp_path / "root"
-    root.mkdir()
-    (root / "file1.py").write_text("content1")
-    sub_dir = root / "subdir"
-    sub_dir.mkdir()
-    (sub_dir / "file2.py").write_text("content2")
-
-    tree = generate_directory_tree(str(root))
-    assert "root" in tree
-    assert "subdir" in tree
-    assert "file1.py" in tree
-    assert "file2.py" in tree
-
-
-@patch(
-    "streamlit_app.streamlit_app.st.button",
-    return_value=True
-)
-@patch(
-    "streamlit_app.streamlit_app.st.text_input",
-    return_value="test_dir"
-)
-@patch(
-    "streamlit_app.streamlit_app.st.multiselect",
-    return_value=["subdir"]
-)
-@patch(
-    "streamlit_app.streamlit_app.st.selectbox",
-    return_value="Groq"
-)
-@patch(
-    "streamlit_app.streamlit_app.st.checkbox",
-    side_effect=[True, True, True, True]
-)
-@patch(
-    "streamlit_app.streamlit_app.os.listdir",
-    return_value=["subdir"]
-)
-@patch(
-    "streamlit_app.streamlit_app.os.path.isdir",
-    return_value=True
-)
-@patch(
-    "streamlit_app.streamlit_app.process_repo",
-    return_value={
-        "repo_path": "/test/path/test_repo",
-        "files": []
-    }
-)
-@patch("streamlit_app.streamlit_app.json.dump")
-@patch("streamlit_app.streamlit_app.st.success")
-@patch("streamlit_app.streamlit_app.st.warning")
-@patch("streamlit_app.streamlit_app.st.error")
-def test_main_success(
-    mocked_st_error,
-    mocked_st_warning,
-    mock_success,
-    mock_json_dump,
-    mock_process_repo,
-    _mock_isdir,
-    _mock_listdir,
-    _mock_checkbox,
-    _mock_selectbox,
-    _mock_multiselect,
-    _mock_text_input,
-    _mock_button,
-):
-    """Test the main function successfully."""
-    mocked_st_error.side_effect = lambda msg: None
-    # Suppress Streamlit errors during testing
-    mocked_st_warning.side_effect = lambda msg: None
-    # Suppress Streamlit warnings
-    mock_success.side_effect = lambda msg: None
-    # Suppress Streamlit success messages
-    mock_json_dump.side_effect = lambda data, f, indent: None
-    # Suppress json.dump
-
-    # Create a dummy directory for testing
-    test_dir = Path("test_dir")
-    test_dir.mkdir(exist_ok=True)
-    (test_dir / "subdir").mkdir(exist_ok=True)  # Create subdir
-    (test_dir / "subdir").mkdir(exist_ok=True)
-
-    # Crucial change: Making sure the function being tested actually runs
-    main()
-
-    mock_process_repo.assert_called_once()
-    mocked_st_error.assert_not_called()
-    mocked_st_warning.assert_not_called()
-
-    shutil.rmtree("test_dir")
