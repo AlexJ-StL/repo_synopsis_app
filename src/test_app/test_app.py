@@ -89,6 +89,12 @@ def test_handle_directory_error_not_a_directory(tmp_path: Path):
     assert handle_directory_error(str(test_file)) is False
 
 
+def test_handle_directory_error_non_string_input():
+    """Test handle_directory_error with non-string input."""
+    # Type annotation says it expects a string
+    assert handle_directory_error(123) is False  # type: ignore
+
+
 def test_save_synopsis_success(tmp_path: Path):
     """Test save_synopsis with a successful save."""
     # Mock handle_directory_error to always return True for this test
@@ -117,6 +123,39 @@ def test_save_synopsis_invalid_dir(tmp_path: Path):
     """Test save_synopsis when the directory is invalid."""
     # Rely on the actual handle_directory_error check within save_synopsis
     assert save_synopsis("/nonexistent/path", "Test", DEFAULT_SYNOPSIS_FILENAME) is False
+
+
+def test_save_synopsis_invalid_directory():
+    """Test save_synopsis with invalid directory."""
+    result = save_synopsis("/nonexistent/directory", "Test content", "test.txt")
+    assert result is False  # Should return False for invalid directory
+
+
+def test_log_event_directory_creation(tmp_path: Path):
+    """Test log_event creates directory if it doesn't exist."""
+    non_existent_dir = tmp_path / "new_log_dir"
+    # Don't create the directory, let log_event do it
+
+    log_event(str(non_existent_dir), "Test message")
+
+    # Check that directory was created
+    assert non_existent_dir.exists()
+    assert non_existent_dir.is_dir()
+
+    # Check that log file was created
+    log_file = non_existent_dir / "event_log.txt"
+    assert log_file.exists()
+
+    # Check log content
+    log_content = log_file.read_text()
+    assert "Test message" in log_content
+
+
+def test_log_event_empty_directory_path():
+    """Test log_event handles empty directory path."""
+    # Should default to current directory or handle gracefully
+    log_event("", "Test message with empty path")
+    # No assertion needed; we're just ensuring it doesn't raise an exception
 
 
 def test_log_event_success(tmp_path: Path):
@@ -215,6 +254,12 @@ def test_generate_synopsis_text_no_files() -> None:
     assert "## File Details" not in result # No file details section
 
 
+def test_generate_directory_tree_empty_dir(tmp_path: Path):
+    """Test generate_directory_tree with an empty directory."""
+    result = generate_directory_tree(str(tmp_path))
+    assert result == ""  # Should return empty string for empty directory
+
+
 # --- Tests for Remaining Helper Functions ---
 
 def test_traverse_directory(tmp_path: Path):
@@ -248,6 +293,13 @@ def test_traverse_directory_error():
         assert items == [] # Should return empty list, not raise
 
 
+def test_traverse_directory_permission_error():
+    """Test traverse_directory handles permission errors."""
+    with patch("os.walk", side_effect=PermissionError("Permission denied")):
+        result = traverse_directory("/fake/path")
+        assert result == []  # Should return empty list on error
+
+
 def test_generate_directory_tree(tmp_path: Path):
     """Test generate_directory_tree basic structure."""
     file1 = tmp_path / "test1.txt"
@@ -274,6 +326,54 @@ def test_generate_directory_tree_with_error():
         tree = generate_directory_tree("/fake/path")
         assert "Error generating tree: Permission denied" in tree
 
+
+def test_generate_synopsis_text_with_all_options(tmp_path: Path):
+    """Test generate_synopsis_text with all options enabled."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+    test_file = repo_path / "file1.py"
+    test_file.write_text("print('hello world')")
+
+    # Create sample RepoData
+    repo_data: RepoData = {
+        "repo_path": str(repo_path),
+        "files": [
+            {
+                "path": str(test_file),
+                "language": "Python",
+                "token_count": 2,
+                "description": "Sample description",
+                "use_case": "Sample use case"
+            }
+        ],
+        "languages": ["Python"],
+        "error": None
+    }
+
+    # Generate synopsis with tree
+    result = generate_synopsis_text(repo_data, include_tree=True, directory_path=str(repo_path))
+
+    # Verify result
+    assert "Languages used: Python" in result
+    assert "## Directory Tree" in result
+    assert "## File Details" in result
+    assert f"### File: `{str(test_file)}` (Python)" in result
+    assert "Token Count:** 2" in result
+    assert "Description:** Sample description" in result
+    assert "Use Case:** Sample use case" in result
+
+
+def test_summarize_text_empty_input():
+    """Test summarize_text with empty input."""
+    result = summarize_text("")
+    assert result == ""  # Should return empty string for empty input
+
+
+def test_summarize_text_short_text():
+    """Test summarize_text with text that's too short to summarize."""
+    short_text = "This is a short piece of text."
+    result = summarize_text(short_text)
+    assert result == ""  # Should return empty string for short text
 
 @patch("streamlit_app.streamlit_app.get_summarizer")
 def test_summarize_text_success(mock_get_summarizer: MagicMock):
@@ -321,6 +421,64 @@ def test_summarize_text_unexpected_output(mock_get_summarizer: MagicMock):
     assert summary == ""
 
 
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_invalid_result_format(mock_get_summarizer: MagicMock):
+    """Test summarize_text when the pipeline returns an unexpected format."""
+    # Mock the summarizer to return something that's not a list of dicts
+    mock_pipeline = MagicMock(return_value="Not a list")
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = "This is a long enough text that should be summarized. " * 10
+    result = summarize_text(text)
+
+    # Should handle invalid format and return empty string
+    assert result == ""
+    mock_pipeline.assert_called_once()
+
+
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_empty_list_result(mock_get_summarizer: MagicMock):
+    """Test summarize_text when the pipeline returns an empty list."""
+    # Mock the summarizer to return an empty list
+    mock_pipeline = MagicMock(return_value=[])
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = "This is a long enough text that should be summarized. " * 10
+    result = summarize_text(text)
+
+    # Should handle empty list and return empty string
+    assert result == ""
+    mock_pipeline.assert_called_once()
+
+
+@patch("streamlit_app.streamlit_app.get_summarizer")
+def test_summarize_text_missing_summary_key(mock_get_summarizer: MagicMock):
+    """Test summarize_text when the summary dict doesn't have 'summary_text' key."""
+    # Mock the summarizer to return a list with dict that has no 'summary_text' key
+    mock_pipeline = MagicMock(return_value=[{"other_key": "value"}])
+    mock_get_summarizer.return_value = mock_pipeline
+
+    text = "This is a long enough text that should be summarized. " * 10
+    result = summarize_text(text)
+
+    # Should use .get() for safe access and return empty string
+    assert result == ""
+    mock_pipeline.assert_called_once()
+
+
+
+def test_get_summarizer_caching():
+    """Test that get_summarizer caches the pipeline."""
+    # Since get_summarizer uses @lru_cache, multiple calls should return the same object
+    summarizer1 = get_summarizer()
+    summarizer2 = get_summarizer()
+    assert summarizer1 is summarizer2  # Same object (identity check)
+    """Test get_file_language with unknown extensions."""
+    assert get_file_language("mystery.xyz") == "Other" # Default changed to 'Other'
+    # Files with no extension map to 'Unknown' in the current implementation
+    assert get_file_language("no_extension_file") == "Unknown"
+
+
 def test_get_file_language_known():
     """Test get_file_language with known extensions."""
     assert get_file_language("my_file.py") == "Python"
@@ -331,10 +489,20 @@ def test_get_file_language_known():
 
 
 def test_get_file_language_unknown():
-    """Test get_file_language with unknown extensions."""
-    assert get_file_language("mystery.xyz") == "Other" # Default changed to 'Other'
-    # Files with no extension map to 'Unknown' in the current implementation
-    assert get_file_language("no_extension_file") == "Unknown"
+
+
+def test_get_file_language_special_cases():
+    """Test get_file_language with special filenames."""
+    # Test case-insensitive extension matching
+    assert get_file_language("script.JS") == "JavaScript"
+
+    # Test files with no extension but special names
+    assert get_file_language("Dockerfile") == "Dockerfile"
+    assert get_file_language("dockerfile") == "Dockerfile"  # Case-insensitive
+
+    # Test makefile (if implemented)
+    if get_file_language("Makefile") == "Makefile":
+        assert get_file_language("makefile") == "Makefile"  # Case-insensitive
 
 
 @patch("streamlit_app.streamlit_app.summarize_text")
@@ -386,6 +554,30 @@ def test_get_llm_response_summarize_error(mock_summarize: MagicMock, tmp_path: P
     # Filename contains 'test', so use case should be Testing/Verification
     assert use_case == "Testing/Verification"
     mock_summarize.assert_called_once()
+
+
+def test_get_llm_response_large_file(tmp_path: Path):
+    """Test get_llm_response with a file that exceeds size limit."""
+    large_file = tmp_path / "large_file.txt"
+    # Write a file larger than the 1MB limit in get_llm_response
+    with open(large_file, 'w') as f:
+        f.write("x" * (1024 * 1024 + 100))  # Slightly over 1MB
+
+    description, use_case = get_llm_response(str(large_file), "Groq")
+
+    assert "File too large" in description
+    assert use_case in ["N/A", "Core Logic/Component", "Testing/Verification", "Utility/Helper Function"]
+
+
+def test_get_llm_response_empty_file(tmp_path: Path):
+    """Test get_llm_response with an empty file."""
+    empty_file = tmp_path / "empty_file.txt"
+    empty_file.touch()  # Create empty file
+
+    description, use_case = get_llm_response(str(empty_file), "Groq")
+
+    assert description == "File is empty."
+    assert use_case in ["N/A", "Core Logic/Component", "Testing/Verification", "Utility/Helper Function"]
 
 
 # --- process_repo Tests ---
@@ -517,6 +709,106 @@ def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicM
     assert file_info.get("use_case") == "LLM Error use case"
     # Assert other details were processed correctly
     assert file_info.get("language") == "Python"
+
+
+def test_process_repo_empty_path():
+    """Test process_repo with empty path."""
+    result = process_repo("", DEFAULT_INCLUDE_OPTIONS, "Groq")
+    assert result.get("error") is not None
+    assert "Empty repo path provided" in result.get("error", "")
+    assert result.get("files") == []
+    assert result.get("languages") is None
+
+
+def test_process_repo_invalid_path():
+    """Test process_repo with invalid path."""
+    with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=False):
+        result = process_repo("/invalid/path", DEFAULT_INCLUDE_OPTIONS, "Groq")
+        assert result.get("error") is not None
+        assert "Invalid or inaccessible" in result.get("error", "")
+        assert result.get("files") == []
+        assert result.get("languages") is None
+
+
+def test_process_repo_os_error(tmp_path: Path):
+    """Test process_repo handles OS errors during processing."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+
+    # Mock traverse_directory to raise an OSError
+    with patch("streamlit_app.streamlit_app.traverse_directory", 
+            side_effect=OSError("Simulated OS error")):
+        with patch("streamlit_app.streamlit_app.st.error"):  # Suppress st.error
+            result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+            assert result.get("error") is not None
+            assert "Unexpected processing error" in result.get("error", "")
+            assert result.get("files") == []
+            assert result.get("languages") is None
+
+
+def test_process_repo_permission_error(tmp_path: Path):
+    """Test process_repo handles permission errors."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+
+    # Mock traverse_directory to raise a PermissionError
+    with patch("streamlit_app.streamlit_app.traverse_directory", 
+            side_effect=PermissionError("Simulated permission error")):
+        with patch("streamlit_app.streamlit_app.st.error"):  # Suppress st.error
+            result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+
+            assert result.get("error") is not None
+            assert "permission" in result.get("error", "").lower() or "access" in result.get("error", "").lower()
+            assert result.get("files") == []
+            assert result.get("languages") is None
+
+
+# More complex integration test for `process_repo`
+def test_process_repo_with_multiple_files(tmp_path: Path):
+    """Test process_repo with multiple files of different types."""
+    repo_path = tmp_path / "test_repo"
+    repo_path.mkdir()
+    
+    # Create files of different types
+    py_file = repo_path / "script.py"
+    py_file.write_text("def hello():\n    print('Hello world')")
+    
+    js_file = repo_path / "script.js"
+    js_file.write_text("function hello() { console.log('Hello world'); }")
+    
+    txt_file = repo_path / "readme.txt"
+    txt_file.write_text("This is a readme file")
+    
+    # Create a subdirectory with a file
+    subdir = repo_path / "subdir"
+    subdir.mkdir()
+    subdir_file = subdir / "subfile.py"
+    subdir_file.write_text("# A comment in a subdirectory file")
+    
+    # Process with all options
+    result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
+    
+    # Verify results
+    assert result.get("error") is None
+    assert len(result["files"]) == 4  # All 4 files should be found
+    
+    # Check that languages were collected correctly
+    assert set(result["languages"]) == {"Python", "JavaScript", "Text"}
+    
+    # Verify file details
+    file_paths = [file_info["path"] for file_info in result["files"]]
+    assert str(py_file) in file_paths
+    assert str(js_file) in file_paths
+    assert str(txt_file) in file_paths
+    assert str(subdir_file) in file_paths
+    
+    # Verify token counts for specific files
+    for file_info in result["files"]:
+        if file_info["path"] == str(py_file):
+            assert file_info.get("token_count") == 7  # def hello(): print('Hello world')
+        elif file_info["path"] == str(js_file):
+            assert file_info.get("token_count") == 8  # function hello() { console.log('Hello world'); }
 
 
 # --- main Function Test (Simplified) ---
