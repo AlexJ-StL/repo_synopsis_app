@@ -33,51 +33,16 @@ def summarize_text(text: str, max_length: int = 150) -> str:
 
     try:
         summarizer = get_summarizer()
-        summary = summarizer(
+        summaries = summarizer(
             text,
             max_length=max_length,
             min_length=min_length,
             do_sample=False
-        )[0]["summary_text"]
-        return summary
-    except Exception as e:
-        st.error(f"Summarization error: {e}")
-        return text  # Return original text if summarization fails
-    if len(text.split()) < 30:  # Don't summarize very short texts
-        return text
-
-    # Calculate dynamic max_length
-    input_length = len(text.split())
-    max_length = min(max_length, max(30, input_length // 2))
-    min_length = max(10, max_length // 3)
-
-    try:
-        summarizer = get_summarizer()
-        summary = summarizer(
-            text,
-            max_length=max_length,
-            min_length=min_length,
-            do_sample=False
-        )[0]["summary_text"]
-        return summary
-    except Exception as e:
-        st.error(f"Summarization error: {e}")
-        return text  # Return original text if summarization fails
-        return text
-
-    # Calculate dynamic max_length
-    input_length = len(text.split())
-    max_length = min(max_length, max(30, input_length // 2))
-    min_length = max(10, max_length // 3)
-
-    try:
-        summarizer = get_summarizer()
-        summary = summarizer(
-            text,
-            max_length=max_length,
-            min_length=min_length,
-            do_sample=False
-        )[0]["summary_text"]
+        )
+        if summaries:
+            summary = summaries[0]["summary_text"]
+        else:
+            summary = text  # Or handle the empty summary case differently
         return summary
     except Exception as e:
         st.error(f"Summarization error: {e}")
@@ -242,9 +207,6 @@ def log_event(directory_path: str, message: str) -> None:
             f.write(f"{timestamp} - {message}\n")
     except Exception as e:
         st.error(f"Error writing to log file: {e}")
-    """Generate and save synopsis directly."""
-    if not handle_directory_error(directory_path):
-        return None
 
 
 def save_synopsis(directory_path: str, content: str) -> bool:
@@ -261,80 +223,6 @@ def save_synopsis(directory_path: str, content: str) -> bool:
     except Exception as e:
         st.error(f"Error saving synopsis: {e}")
         return False
-
-    try:
-        items = traverse_directory(directory_path)
-        if not items:
-            st.error("No items found in directory")
-            return None
-
-        synopsis = ""
-        languages = set()
-
-        include_tree = st.checkbox("Include Directory Tree")
-        # Example using a Streamlit checkbox
-
-        if include_tree:
-            synopsis += "## Directory Tree\n"
-            tree = generate_directory_tree(directory_path)
-            synopsis += tree + "\n"
-
-        include_descriptions = st.checkbox("Include Descriptions")
-        include_token_count = st.checkbox("Include Token Count")
-        include_use_cases = st.checkbox("Include Use Cases")
-
-        if include_descriptions or include_token_count or include_use_cases:
-            synopsis += "## Item Details\n"
-            for item_path in items:
-                if os.path.isfile(item_path):
-                    language = get_file_language(item_path)
-                    languages.add(language)
-                    synopsis += (
-                        f"- **File:** {item_path}, "
-                        f"**Language:** {language}\n"
-                    )
-
-                    if include_token_count and language != "Unknown":
-                        try:
-                            with open(item_path, "r", encoding="utf-8") as f:
-                                content = f.read()
-                                token_count = len(content.split())
-                                synopsis += (
-                                    f"  - **Token Count:**"
-                                    f"{token_count}\n"
-                                )
-                        except Exception:
-                            synopsis += (
-                                "  - **Token Count:** "
-                                "Unable to read file\n"
-                            )
-
-                    llm_provider = st.selectbox(
-                        "Choose LLM Provider",
-                        ["OpenAI", "OtherLLM"]
-                    )
-
-                    if include_descriptions or include_use_cases:
-                        description, use_case = get_llm_response(
-                            item_path,
-                            llm_provider
-                        )
-                        if include_descriptions:
-                            synopsis += f"  - **Description:** {description}\n"
-                        if include_use_cases:
-                            synopsis += f"  - **Use Case:** {use_case}\n"
-
-        if languages:
-            synopsis = f"Languages used: {', '.join(languages)}\n\n" + synopsis
-
-        if save_synopsis(directory_path, synopsis):
-            return synopsis
-        return None
-
-    except Exception as e:
-        st.error(f"Error generating synopsis: {e}")
-        log_event(directory_path, f"Error generating synopsis: {e}")
-        return None
 
 
 def generate_synopsis(
