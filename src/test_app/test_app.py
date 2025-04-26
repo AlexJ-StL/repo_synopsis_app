@@ -527,23 +527,34 @@ def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicM
 
 @patch("streamlit_app.streamlit_app.st.button", return_value=True)
 @patch("streamlit_app.streamlit_app.st.session_state", new_callable=MagicMock)
+@patch("streamlit_app.streamlit_app.st.sidebar.text_input") # Mock the text input
 @patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
 @patch("streamlit_app.streamlit_app.process_repo")
 @patch("streamlit_app.streamlit_app.save_synopsis", return_value=True)
 @patch("streamlit_app.streamlit_app.log_event")
-@patch("streamlit_app.streamlit_app.json.dump") # Keep mocking json.dump
+@patch("streamlit_app.streamlit_app.json.dump")
 @patch("streamlit_app.streamlit_app.generate_synopsis_text", return_value="Synopsis Text")
 @patch("streamlit_app.streamlit_app.st.download_button")
-# Remove the broad @patch("builtins.open", ...) as it interferes with Streamlit internals
+# Mocking other potentially called UI elements just in case
+@patch("streamlit_app.streamlit_app.st.sidebar.checkbox", return_value=True)
+@patch("streamlit_app.streamlit_app.st.sidebar.selectbox", return_value="Groq")
+@patch("streamlit_app.streamlit_app.st.multiselect")
+@patch("streamlit_app.streamlit_app.os.listdir") # Mock os.listdir used in main
+@patch("streamlit_app.streamlit_app.os.path.isdir", return_value=True) # Mock isdir used in main
 def test_main_processing_logic(
-    # mock_builtin_open removed from params
-    mock_download_button: MagicMock,
+    mock_os_path_isdir: MagicMock,
+    mock_os_listdir: MagicMock,
+    mock_st_multiselect: MagicMock,
+    mock_st_sidebar_selectbox: MagicMock,
+    mock_st_sidebar_checkbox: MagicMock,
+    mock_st_download_button: MagicMock,
     mock_gen_text: MagicMock,
     mock_json_dump: MagicMock,
     mock_log: MagicMock,
     mock_save: MagicMock,
     mock_process: MagicMock,
     mock_handle_dir: MagicMock,
+    mock_st_sidebar_text_input: MagicMock, # Capture the text_input mock
     mock_session_state: MagicMock,
     mock_st_button: MagicMock,
     tmp_path: Path
@@ -557,30 +568,35 @@ def test_main_processing_logic(
     full_repo_path = os.path.join(base_dir, repo_name)
     os.makedirs(full_repo_path, exist_ok=True)
 
-    mock_session_state.repo_select = [repo_name]
+    # Configure mocks
+    mock_st_sidebar_text_input.return_value = base_dir # Ensure text_input returns the path
+    mock_os_listdir.return_value = [repo_name] # Simulate finding the repo directory
+    mock_st_multiselect.return_value = [repo_name] # Simulate selecting the repo
     mock_process.return_value = RepoData(
         repo_path=full_repo_path, files=[], languages=[], error=None
     )
+    # Set session state directly if needed, but mocking inputs might be enough
+    # mock_session_state.repo_select = [repo_name] # This might be redundant if multiselect is mocked
 
-    # No need to mock builtins.open here anymore
-
-    with patch.dict(st.session_state, {
-        'base_dir': base_dir,
-        'inc_tree': True, 'inc_desc': True, 'inc_token': True, 'inc_use': True,
-        'llm_select': 'Groq', 'repo_select': [repo_name]
-    }):
-        main()
+    # No longer need patch.dict as input values are mocked directly
+    main()
 
     # --- Assertions ---
-    mock_handle_dir.assert_called()
+    mock_st_sidebar_text_input.assert_called_with(
+        "Base Directory Containing Repositories:", key="base_dir"
+    )
+    # handle_directory_error should be called twice: once outside the button block, once inside
+    assert mock_handle_dir.call_count >= 1 # At least once, maybe twice depending on exact flow tested
     mock_st_button.assert_called_with("Generate", key="generate_button", type="primary")
+    mock_os_listdir.assert_called_with(base_dir) # Check if repo listing was attempted
+    mock_st_multiselect.assert_called() # Check if repo selection widget was called
     mock_process.assert_called_once()
     call_args, call_kwargs = mock_process.call_args
     assert call_args[0] == full_repo_path
     assert call_args[1]['descriptions'] is True
 
     mock_gen_text.assert_called_once()
-    mock_save.assert_called() # Called for the .md file
-    mock_json_dump.assert_called_once() # Called for the .json file
+    mock_save.assert_called()
+    mock_json_dump.assert_called_once()
     mock_log.assert_called()
-    assert mock_download_button.call_count == 2
+    assert mock_st_download_button.call_count == 2
