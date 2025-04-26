@@ -527,7 +527,7 @@ def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicM
 
 @patch("streamlit_app.streamlit_app.st.button", return_value=True)
 @patch("streamlit_app.streamlit_app.st.session_state", new_callable=MagicMock)
-@patch("streamlit_app.streamlit_app.st.sidebar.text_input") # Mock the text input
+@patch("streamlit_app.streamlit_app.st.sidebar.text_input")
 @patch("streamlit_app.streamlit_app.handle_directory_error", return_value=True)
 @patch("streamlit_app.streamlit_app.process_repo")
 @patch("streamlit_app.streamlit_app.save_synopsis", return_value=True)
@@ -535,12 +535,11 @@ def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicM
 @patch("streamlit_app.streamlit_app.json.dump")
 @patch("streamlit_app.streamlit_app.generate_synopsis_text", return_value="Synopsis Text")
 @patch("streamlit_app.streamlit_app.st.download_button")
-# Mocking other potentially called UI elements just in case
 @patch("streamlit_app.streamlit_app.st.sidebar.checkbox", return_value=True)
 @patch("streamlit_app.streamlit_app.st.sidebar.selectbox", return_value="Groq")
 @patch("streamlit_app.streamlit_app.st.multiselect")
-@patch("streamlit_app.streamlit_app.os.listdir") # Mock os.listdir used in main
-@patch("streamlit_app.streamlit_app.os.path.isdir", return_value=True) # Mock isdir used in main
+@patch("streamlit_app.streamlit_app.os.listdir")
+@patch("streamlit_app.streamlit_app.os.path.isdir", return_value=True)
 def test_main_processing_logic(
     mock_os_path_isdir: MagicMock,
     mock_os_listdir: MagicMock,
@@ -554,7 +553,7 @@ def test_main_processing_logic(
     mock_save: MagicMock,
     mock_process: MagicMock,
     mock_handle_dir: MagicMock,
-    mock_st_sidebar_text_input: MagicMock, # Capture the text_input mock
+    mock_st_sidebar_text_input: MagicMock,
     mock_session_state: MagicMock,
     mock_st_button: MagicMock,
     tmp_path: Path
@@ -562,34 +561,43 @@ def test_main_processing_logic(
     """Test the main logic path after the 'Generate' button is pressed."""
 
     # --- Setup Mocks and State ---
-# --- Setup Mocks and State ---
     base_dir = str(tmp_path)
     repo_name = "my_repo"
     full_repo_path = os.path.join(base_dir, repo_name)
     os.makedirs(full_repo_path, exist_ok=True)
 
-    # Configure mocks
-    mock_st_sidebar_text_input.return_value = base_dir # Ensure text_input returns the path
-    mock_os_listdir.return_value = [repo_name] # Simulate finding the repo directory
-    mock_st_multiselect.return_value = [repo_name] # Simulate selecting the repo
+    # Configure mocks for input widgets
+    mock_st_sidebar_text_input.return_value = base_dir
+    mock_os_listdir.return_value = [repo_name]
+    # Mock multiselect return value (though it's the session state that matters later)
+    mock_st_multiselect.return_value = [repo_name]
     mock_process.return_value = RepoData(
         repo_path=full_repo_path, files=[], languages=[], error=None
     )
-    # Set session state directly if needed, but mocking inputs might be enough
-    # mock_session_state.repo_select = [repo_name] # This might be redundant if multiselect is mocked
 
-    # No longer need patch.dict as input values are mocked directly
+    # --- CRITICAL: Set the session state key that the button logic checks ---
+    # Simulate that the multiselect widget (key='repo_select') has stored its value
+    mock_session_state.repo_select = [repo_name]
+    # Also need to ensure the session state *behaves* like a dictionary for the 'in' check
+    # Option 1: Configure __contains__
+    # mock_session_state.__contains__.side_effect = lambda key: key == 'repo_select'
+    # Option 2: Use patch.dict (might be cleaner if setting multiple state items)
+    # This requires removing the direct assignment above and the MagicMock patch for session_state
+    # and using patch.dict on st instead:
+    # @patch.dict(st.session_state, {'repo_select': [repo_name]}, clear=True) # Use this decorator instead
+
+    # --- Execute ---
     main()
 
     # --- Assertions ---
     mock_st_sidebar_text_input.assert_called_with(
         "Base Directory Containing Repositories:", key="base_dir"
     )
-    # handle_directory_error should be called twice: once outside the button block, once inside
-    assert mock_handle_dir.call_count >= 1 # At least once, maybe twice depending on exact flow tested
+    assert mock_handle_dir.call_count >= 1
     mock_st_button.assert_called_with("Generate", key="generate_button", type="primary")
-    mock_os_listdir.assert_called_with(base_dir) # Check if repo listing was attempted
-    mock_st_multiselect.assert_called() # Check if repo selection widget was called
+    mock_os_listdir.assert_called_with(base_dir)
+    mock_st_multiselect.assert_called()
+    # Now process_repo should be called
     mock_process.assert_called_once()
     call_args, call_kwargs = mock_process.call_args
     assert call_args[0] == full_repo_path
