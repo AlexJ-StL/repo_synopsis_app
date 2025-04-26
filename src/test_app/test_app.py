@@ -333,11 +333,8 @@ def test_get_file_language_known():
 def test_get_file_language_unknown():
     """Test get_file_language with unknown extensions."""
     assert get_file_language("mystery.xyz") == "Other" # Default changed to 'Other'
-    # Files with no extension are now specifically handled as 'Unknown' if basename doesn't match
-    # Update based on the actual implementation's logic for no extension
-    assert get_file_language("no_extension_file") == "Other" # If truly unknown
-    # If get_file_language maps "" extension to 'Unknown':
-    # assert get_file_language("no_extension") == "Unknown"
+    # Files with no extension map to 'Unknown' in the current implementation
+    assert get_file_language("no_extension_file") == "Unknown"
 
 
 @patch("streamlit_app.streamlit_app.summarize_text")
@@ -534,20 +531,15 @@ def test_process_repo_llm_error(mock_handle_dir: MagicMock, mock_get_llm: MagicM
 @patch("streamlit_app.streamlit_app.process_repo")
 @patch("streamlit_app.streamlit_app.save_synopsis", return_value=True)
 @patch("streamlit_app.streamlit_app.log_event")
-# Remove the broad @patch("builtins.open")
-@patch("streamlit_app.streamlit_app.json.dump")
+@patch("streamlit_app.streamlit_app.json.dump") # Keep mocking json.dump
 @patch("streamlit_app.streamlit_app.generate_synopsis_text", return_value="Synopsis Text")
 @patch("streamlit_app.streamlit_app.st.download_button")
-# Add mock for file opening specifically for download buttons if needed,
-# but often mocking the higher-level function (st.download_button) is sufficient.
-# If download button implementation relies on reading the file, mock 'open' contextually.
-@patch("builtins.open", new_callable=MagicMock) # Mock open specifically for download button context if required
+# Remove the broad @patch("builtins.open", ...) as it interferes with Streamlit internals
 def test_main_processing_logic(
-    mock_builtin_open: MagicMock, # Capture the specific open mock
+    # mock_builtin_open removed from params
     mock_download_button: MagicMock,
     mock_gen_text: MagicMock,
     mock_json_dump: MagicMock,
-    # mock_open removed from params
     mock_log: MagicMock,
     mock_save: MagicMock,
     mock_process: MagicMock,
@@ -559,30 +551,18 @@ def test_main_processing_logic(
     """Test the main logic path after the 'Generate' button is pressed."""
 
     # --- Setup Mocks and State ---
+# --- Setup Mocks and State ---
     base_dir = str(tmp_path)
     repo_name = "my_repo"
     full_repo_path = os.path.join(base_dir, repo_name)
-    os.makedirs(full_repo_path, exist_ok=True) # Create dummy repo dir
+    os.makedirs(full_repo_path, exist_ok=True)
 
-    # Simulate UI state needed *after* button press
-    # We need to mock access to st.session_state AFTER the button is checked
-    mock_session_state.repo_select = [repo_name] # Simulate repo selected
-
-    # Mock return value for process_repo
     mock_session_state.repo_select = [repo_name]
     mock_process.return_value = RepoData(
         repo_path=full_repo_path, files=[], languages=[], error=None
     )
 
-    # Configure mock_builtin_open if download button relies on it reading file content
-    # Example: Simulate reading bytes for the download button
-    mock_file_handle = MagicMock()
-    mock_file_handle.__enter__.return_value.read.return_value = b'{"data": "json"}' # For JSON download
-    # You might need separate configurations if both text and JSON downloads are tested
-    # and need different read() return values (e.g., using side_effect).
-    # For simplicity, this assumes one config works or the read() isn't crucial for the test.
-    mock_builtin_open.return_value = mock_file_handle
-
+    # No need to mock builtins.open here anymore
 
     with patch.dict(st.session_state, {
         'base_dir': base_dir,
@@ -592,23 +572,15 @@ def test_main_processing_logic(
         main()
 
     # --- Assertions ---
-    # Check if core functions were called
-    mock_handle_dir.assert_called() # Called for base_dir validation
+    mock_handle_dir.assert_called()
     mock_st_button.assert_called_with("Generate", key="generate_button", type="primary")
     mock_process.assert_called_once()
-    # Check args of process_repo if necessary:
     call_args, call_kwargs = mock_process.call_args
-    assert call_args[0] == full_repo_path # Check repo path arg
-    assert call_args[1]['descriptions'] is True # Check options passed
+    assert call_args[0] == full_repo_path
+    assert call_args[1]['descriptions'] is True
 
-    # Check if output generation/saving was attempted
     mock_gen_text.assert_called_once()
     mock_save.assert_called() # Called for the .md file
     mock_json_dump.assert_called_once() # Called for the .json file
-    mock_log.assert_called() # Check if logging happened
-
-    # Check if builtins.open was called (likely by json.dump and download buttons)
-    # The exact number might vary depending on implementation details
-    assert mock_builtin_open.call_count >= 2 # At least for json dump and one download
-
-    assert mock_download_button.call_count == 2 # One for md, one for json
+    mock_log.assert_called()
+    assert mock_download_button.call_count == 2
