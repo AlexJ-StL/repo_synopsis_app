@@ -466,17 +466,15 @@ def test_summarize_text_missing_summary_key(mock_get_summarizer: MagicMock):
     mock_pipeline.assert_called_once()
 
 
-
 def test_get_summarizer_caching():
     """Test that get_summarizer caches the pipeline."""
+    # Import get_summarizer here if it's not part of the imported functions
+    from streamlit_app.streamlit_app import get_summarizer
+
     # Since get_summarizer uses @lru_cache, multiple calls should return the same object
     summarizer1 = get_summarizer()
     summarizer2 = get_summarizer()
     assert summarizer1 is summarizer2  # Same object (identity check)
-    """Test get_file_language with unknown extensions."""
-    assert get_file_language("mystery.xyz") == "Other" # Default changed to 'Other'
-    # Files with no extension map to 'Unknown' in the current implementation
-    assert get_file_language("no_extension_file") == "Unknown"
 
 
 def test_get_file_language_known():
@@ -489,6 +487,9 @@ def test_get_file_language_known():
 
 
 def test_get_file_language_unknown():
+    """Test get_file_language with unknown extensions."""
+    assert get_file_language("mystery.xyz") == "Other"  # Default changed to 'Other'
+    assert get_file_language("no_extension_file") == "Unknown"  # No extension
 
 
 def test_get_file_language_special_cases():
@@ -501,7 +502,8 @@ def test_get_file_language_special_cases():
     assert get_file_language("dockerfile") == "Dockerfile"  # Case-insensitive
 
     # Test makefile (if implemented)
-    if get_file_language("Makefile") == "Makefile":
+    makefile_result = get_file_language("Makefile")
+    if makefile_result == "Makefile":
         assert get_file_language("makefile") == "Makefile"  # Case-insensitive
 
 
@@ -715,7 +717,9 @@ def test_process_repo_empty_path():
     """Test process_repo with empty path."""
     result = process_repo("", DEFAULT_INCLUDE_OPTIONS, "Groq")
     assert result.get("error") is not None
-    assert "Empty repo path provided" in result.get("error", "")
+    error_msg = result.get("error", "")
+    assert error_msg is not None
+    assert "Empty repo path provided" in error_msg
     assert result.get("files") == []
     assert result.get("languages") is None
 
@@ -725,7 +729,9 @@ def test_process_repo_invalid_path():
     with patch("streamlit_app.streamlit_app.handle_directory_error", return_value=False):
         result = process_repo("/invalid/path", DEFAULT_INCLUDE_OPTIONS, "Groq")
         assert result.get("error") is not None
-        assert "Invalid or inaccessible" in result.get("error", "")
+        error_msg = result.get("error", "")
+        assert error_msg is not None
+        assert "Invalid or inaccessible" in error_msg
         assert result.get("files") == []
         assert result.get("languages") is None
 
@@ -736,13 +742,15 @@ def test_process_repo_os_error(tmp_path: Path):
     repo_path.mkdir()
 
     # Mock traverse_directory to raise an OSError
-    with patch("streamlit_app.streamlit_app.traverse_directory", 
+    with patch("streamlit_app.streamlit_app.traverse_directory",
             side_effect=OSError("Simulated OS error")):
         with patch("streamlit_app.streamlit_app.st.error"):  # Suppress st.error
             result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
 
             assert result.get("error") is not None
-            assert "Unexpected processing error" in result.get("error", "")
+            error_msg = result.get("error", "")
+            assert error_msg is not None
+            assert "Unexpected processing error" in error_msg
             assert result.get("files") == []
             assert result.get("languages") is None
 
@@ -753,13 +761,19 @@ def test_process_repo_permission_error(tmp_path: Path):
     repo_path.mkdir()
 
     # Mock traverse_directory to raise a PermissionError
-    with patch("streamlit_app.streamlit_app.traverse_directory", 
+    with patch("streamlit_app.streamlit_app.traverse_directory",
             side_effect=PermissionError("Simulated permission error")):
         with patch("streamlit_app.streamlit_app.st.error"):  # Suppress st.error
             result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
 
             assert result.get("error") is not None
-            assert "permission" in result.get("error", "").lower() or "access" in result.get("error", "").lower()
+            error_msg = result.get("error", "")
+            if error_msg is not None:
+                # Check if either "permission" or "access" is in the lowercase error
+                assert ("permission" in error_msg.lower() or
+                        "access" in error_msg.lower())
+            else:
+                pytest.fail("Expected error message but got None")
             assert result.get("files") == []
             assert result.get("languages") is None
 
@@ -769,47 +783,58 @@ def test_process_repo_with_multiple_files(tmp_path: Path):
     """Test process_repo with multiple files of different types."""
     repo_path = tmp_path / "test_repo"
     repo_path.mkdir()
-    
+
     # Create files of different types
     py_file = repo_path / "script.py"
     py_file.write_text("def hello():\n    print('Hello world')")
-    
+
     js_file = repo_path / "script.js"
     js_file.write_text("function hello() { console.log('Hello world'); }")
-    
+
     txt_file = repo_path / "readme.txt"
     txt_file.write_text("This is a readme file")
-    
+
     # Create a subdirectory with a file
     subdir = repo_path / "subdir"
     subdir.mkdir()
     subdir_file = subdir / "subfile.py"
     subdir_file.write_text("# A comment in a subdirectory file")
-    
+
     # Process with all options
     result = process_repo(str(repo_path), DEFAULT_INCLUDE_OPTIONS, "Groq")
-    
+
     # Verify results
     assert result.get("error") is None
     assert len(result["files"]) == 4  # All 4 files should be found
-    
+
     # Check that languages were collected correctly
-    assert set(result["languages"]) == {"Python", "JavaScript", "Text"}
-    
-    # Verify file details
-    file_paths = [file_info["path"] for file_info in result["files"]]
+    languages = result.get("languages")
+    if languages is not None:
+        assert set(languages) == {"Python", "JavaScript", "Text"}
+    else:
+        pytest.fail("Expected languages list but got None")
+
+    # Verify file details - safely access paths
+    file_paths = []
+    for file_info in result["files"]:
+        path = file_info.get("path")
+        if path is not None:
+            file_paths.append(path)
+
     assert str(py_file) in file_paths
     assert str(js_file) in file_paths
     assert str(txt_file) in file_paths
     assert str(subdir_file) in file_paths
-    
-    # Verify token counts for specific files
-    for file_info in result["files"]:
-        if file_info["path"] == str(py_file):
-            assert file_info.get("token_count") == 7  # def hello(): print('Hello world')
-        elif file_info["path"] == str(js_file):
-            assert file_info.get("token_count") == 8  # function hello() { console.log('Hello world'); }
 
+    # Verify token counts for specific files - safely access values
+    for file_info in result["files"]:
+        path = file_info.get("path")
+        if path == str(py_file):
+            token_count = file_info.get("token_count")
+            assert token_count == 7  # def hello(): print('Hello world')
+        elif path == str(js_file):
+            token_count = file_info.get("token_count")
+            assert token_count == 8  # function hello() { console.log('Hello world'); }
 
 # --- main Function Test (Simplified) ---
 
