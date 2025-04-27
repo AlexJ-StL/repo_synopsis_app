@@ -248,41 +248,63 @@ def save_synopsis(directory_path: str, content: str, filename: str) -> bool:
         return False
 
 
+# ... inside get_llm_response function ...
 def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
     """Gets description (via summarization) and placeholder use case."""
-    description = ""
-    use_case = "N/A" # Default to Not Applicable
+    description = "" # Initialize description
+    use_case = "N/A" # Initialize use_case
 
     try:
-        # Limit file size to read to prevent memory issues
+        # Check file size first to avoid reading huge files
+        # This needs to be inside the try block as getsize can fail
         file_size = os.path.getsize(file_path)
         if file_size > 1 * 1024 * 1024: # Limit to 1MB for summarization
             description = "File too large for automatic description."
+            # Return early if file is too large, use_case remains "N/A"
             return description, use_case
 
+        # Read the file content
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
+            content = f.read() # content is defined here
 
+        # Process content only if it exists
         if content:
-            description = summarize_text(content)
-            # Placeholder - actual use case logic would go here
-            # Maybe based on filename, path, or simple content analysis
-            if "test" in file_path.lower():
+            # Summarize text
+            description = summarize_text(content) # Use content here
+
+            # Determine use case based on filename (basename only)
+            basename_lower = os.path.basename(file_path).lower()
+            if "test" in basename_lower:
                 use_case = "Testing/Verification"
-            elif "util" in file_path.lower() or "helper" in file_path.lower():
+            elif "util" in basename_lower or "helper" in basename_lower:
                 use_case = "Utility/Helper Function"
             else:
-                use_case = "Core Logic/Component" # Generic default
+                use_case = "Core Logic/Component"
         else:
+            # Handle empty content case
             description = "File is empty."
+            # use_case remains "N/A" as initialized
 
+        # Return successfully processed description and use case
         return description, use_case
 
     except FileNotFoundError:
+        # Handle file not found errors specifically
+        print(f"File not found: {file_path}") # Log the specific error
+        # 'content' is NOT defined here, don't use it
         return "Error: File not found", "Error: File not found"
+
+    except OSError as e:
+        # Handle OS-related errors (permissions, getsize fails, etc.)
+        print(f"OS error accessing file {file_path}: {e}")
+        # 'content' is NOT defined here, don't use it
+        return f"Error accessing file: {e}", f"Error: {e}"
+
     except Exception as e:
-        print(f"Error reading file or summarizing {file_path}: {e}")
-        return f"Error reading file: {e}", f"Error: {e}"
+        # Handle any other unexpected errors during processing
+        print(f"Unexpected error processing file {file_path}: {e}")
+        # 'content' is NOT defined here, don't use it
+        return f"Error processing file: {e}", f"Error: {e}"
 
 
 # --- Core Logic Functions ---
