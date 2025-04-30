@@ -3,25 +3,25 @@
 [project]
 name = "repo_synopsis"
 version = "0.3.0"
-dependencies = [
-    "streamlit",
-    "pytest",
-    "shutils",
-    "pytest-cov>=6.0.0",
-    "numpy",
-    "pandas",
-    "transformers>=4.49.0",
-    "torch>=2.6.0",
-]
 requires-python = ">= 3.11.0"
-authors = [ {name = "Alex Jensen", email = "thanotosq@gmail.com"}, ]
+authors = [{ name = "Alex Jensen", email = "thanotosq@gmail.com" }]
 description = "Application that uses an LLM to index the contents of a repository and generate a synopsis."
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 keywords = ["streamlit", "python", "shutils"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
-  "Programming Language :: Python"
+  "Programming Language :: Python",
+]
+dependencies = [
+  "streamlit",
+  "pytest",
+  "shutils",
+  "pytest-cov>=6.0.0",
+  "numpy",
+  "pandas",
+  "transformers>=4.49.0",
+  "torch>=2.6.0",
 ]
 
 [build-system]
@@ -29,7 +29,7 @@ requires = ["setuptools >= 61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["streamlit_app", "test_app"]
+packages = ["streamlit_app"]
 
 [tool.setuptools.package-dir]
 "" = "src"

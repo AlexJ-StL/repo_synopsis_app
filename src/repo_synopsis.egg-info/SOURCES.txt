@@ -8,5 +8,3 @@ src/repo_synopsis.egg-info/requires.txt
 src/repo_synopsis.egg-info/top_level.txt
 src/streamlit_app/__init__.py
 src/streamlit_app/streamlit_app.py
-src/test_app/simple_app.py
-src/test_app/test_app.py

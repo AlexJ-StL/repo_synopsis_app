@@ -1,7 +1,9 @@
 streamlit
+pytest
 shutils
 pytest
 pytest-cov>=6.0.0
-pandas
 numpy
-transformers
+pandas
+transformers>=4.49.0
+torch>=2.6.0
