@@ -1,0 +1,12 @@
+import pytest
+from streamlit_app.streamlit_app import generate_synopsis_text
+
+@pytest.mark.edge
+def test_languages_key_missing(self, minimal_repo_data, mock_os_walk):
+    """
+    Test with 'languages' key missing from repo_data.
+    """
+    data = dict(minimal_repo_data)
+    data.pop("languages")
+    result = generate_synopsis_text(cast(RepoData, data), include_tree=False, directory_path="/repo")
+    assert "Languages used:" not in result

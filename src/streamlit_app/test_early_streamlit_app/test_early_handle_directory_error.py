@@ -60,7 +60,10 @@ class TestHandleDirectoryError:
     @pytest.mark.edge
     def test_none_path_returns_false(self, patch_st_error):
         """Test that None as directory path returns False and calls st.error."""
-        result = handle_directory_error(None)
+        # Cast None to str for the type checker
+        result = handle_directory_error(cast(str, 123))
+        assert result is False
+        patch_st_error.assert_called_once_with("Directory path must be a string.")
         assert result is False
         patch_st_error.assert_called_once_with("Directory path must be a string.")
 

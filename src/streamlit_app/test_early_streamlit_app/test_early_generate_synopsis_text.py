@@ -1,10 +1,9 @@
-# test_streamlit_app_generate_synopsis_text.py
-
 import pytest
 from unittest.mock import patch
+from typing import cast, Dict, List, Optional
 
 # Import the function under test
-from streamlit_app.streamlit_app import generate_synopsis_text
+from streamlit_app.streamlit_app import generate_synopsis_text, RepoData, FileData
 
 @pytest.mark.usefixtures("mock_os_walk")
 class TestGenerateSynopsisText:
@@ -79,7 +78,7 @@ class TestGenerateSynopsisText:
         """
         Test synopsis generation with languages, directory tree, and multiple files.
         """
-        result = generate_synopsis_text(full_repo_data, include_tree=True, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, full_repo_data), include_tree=True, directory_path="/repo")
         # Check languages
         assert "Languages used: Python, JavaScript" in result
         # Check directory tree
@@ -104,7 +103,7 @@ class TestGenerateSynopsisText:
         """
         Test synopsis generation with languages and files, but no directory tree.
         """
-        result = generate_synopsis_text(full_repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, full_repo_data), include_tree=False, directory_path="/repo")
         assert "Languages used: Python, JavaScript" in result
         assert "## Directory Tree" not in result
         assert "## File Details" in result
@@ -117,8 +116,8 @@ class TestGenerateSynopsisText:
         Test synopsis generation with no languages, but with tree and files.
         """
         data = dict(full_repo_data)
-        data.pop("languages")
-        result = generate_synopsis_text(data, include_tree=True, directory_path="/repo")
+        data.pop("languages", None)
+        result = generate_synopsis_text(cast(RepoData, data), include_tree=True, directory_path="/repo")
         assert "Languages used:" not in result
         assert "## Directory Tree" in result
         assert "## File Details" in result
@@ -130,7 +129,7 @@ class TestGenerateSynopsisText:
         """
         data = dict(minimal_repo_data)
         data["languages"] = ["Python"]
-        result = generate_synopsis_text(data, include_tree=True, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, data), include_tree=True, directory_path="/repo")
         assert "Languages used: Python" in result
         assert "## Directory Tree" in result
         assert "## File Details" not in result
@@ -140,7 +139,7 @@ class TestGenerateSynopsisText:
         """
         Test file entry with missing token_count, description, and use_case.
         """
-        result = generate_synopsis_text(file_with_missing_fields, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, file_with_missing_fields), include_tree=False, directory_path="/repo")
         assert "Languages used: Markdown" in result
         assert "## File Details" in result
         assert "### File: `README.md` (Markdown)" in result
@@ -156,7 +155,7 @@ class TestGenerateSynopsisText:
         """
         Test with completely empty repo data (no languages, no files).
         """
-        result = generate_synopsis_text(minimal_repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, minimal_repo_data), include_tree=False, directory_path="/repo")
         assert result.strip() == ""  # Should be empty
 
     @pytest.mark.edge
@@ -166,7 +165,8 @@ class TestGenerateSynopsisText:
         """
         data = dict(minimal_repo_data)
         data["languages"] = ["Python"]
-        result = generate_synopsis_text(data, include_tree=False, directory_path="/repo")
+        # Cast the dict to RepoData
+        result = generate_synopsis_text(cast(RepoData, data), include_tree=False, directory_path="/repo")
         assert "Languages used: Python" in result
         assert "## File Details" not in result
 
@@ -187,7 +187,7 @@ class TestGenerateSynopsisText:
             "languages": ["Python"],
             "error": None
         }
-        result = generate_synopsis_text(repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, repo_data), include_tree=False, directory_path="/repo")
         assert "- **Token Count:** Error: Could not count tokens" in result
 
     @pytest.mark.edge
@@ -208,7 +208,7 @@ class TestGenerateSynopsisText:
             "languages": ["Python"],
             "error": None
         }
-        result = generate_synopsis_text(repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, repo_data), include_tree=False, directory_path="/repo")
         assert "foo.py" in result
         assert "should be ignored" not in result
 
@@ -218,7 +218,8 @@ class TestGenerateSynopsisText:
         Test that an OSError in directory tree generation is handled gracefully.
         """
         with patch("streamlit_app.streamlit_app.os.walk", side_effect=OSError("Permission denied")):
-            result = generate_synopsis_text(full_repo_data, include_tree=True, directory_path="/repo")
+            # Cast the dict to RepoData
+            result = generate_synopsis_text(cast(RepoData, full_repo_data), include_tree=True, directory_path="/repo")
             assert "Error generating tree: Permission denied" in result
 
     @pytest.mark.edge
@@ -236,7 +237,7 @@ class TestGenerateSynopsisText:
             "languages": [],
             "error": None
         }
-        result = generate_synopsis_text(repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, repo_data), include_tree=False, directory_path="/repo")
         assert "### File: `N/A` (N/A)" in result
         assert "- **Token Count:** 5" in result
 
@@ -251,7 +252,7 @@ class TestGenerateSynopsisText:
             "languages": None,
             "error": None
         }
-        result = generate_synopsis_text(repo_data, include_tree=False, directory_path="/repo")
+        result = generate_synopsis_text(cast(RepoData, repo_data), include_tree=False, directory_path="/repo")
         assert result.strip() == ""
 
     @pytest.mark.edge
@@ -260,8 +261,9 @@ class TestGenerateSynopsisText:
         Test with 'files' key missing from repo_data.
         """
         data = dict(minimal_repo_data)
-        data.pop("files")
-        result = generate_synopsis_text(data, include_tree=False, directory_path="/repo")
+        data.pop("files", None)
+        # Cast the dict to RepoData
+        result = generate_synopsis_text(cast(RepoData, data), include_tree=False, directory_path="/repo")
         assert result.strip() == ""
 
     @pytest.mark.edge
@@ -270,6 +272,7 @@ class TestGenerateSynopsisText:
         Test with 'languages' key missing from repo_data.
         """
         data = dict(minimal_repo_data)
-        data.pop("languages")
-        result = generate_synopsis_text(data, include_tree=False, directory_path="/repo")
+        data.pop("languages", None)
+        # Cast is already present here, which is good.
+        result = generate_synopsis_text(cast(RepoData, data), include_tree=False, directory_path="/repo")
         assert "Languages used:" not in result

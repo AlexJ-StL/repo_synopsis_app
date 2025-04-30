@@ -111,13 +111,13 @@ def traverse_directory(directory_path: str) -> List[str]:
     try:
         for root, _, files in os.walk(directory_path):
             """Generate a string representation of the directory tree.
-            
+
             Parameters:
             directory_path (str): The path of the directory to traverse.
-            
+
             Returns:
             str: A string representation of the directory tree.
-            
+
             Raises:
             PermissionError: If the program lacks permissions to access a directory.
             OSError: For other OS-related errors encountered during traversal.
@@ -167,79 +167,23 @@ def generate_directory_tree(directory_path: str) -> str:
 
 def get_file_language(file_path: str) -> str:
     """Generate a string representation of the directory tree.
-    
+
     This function traverses the specified directory and constructs a visual
     representation of its structure, including subdirectories and files.
     It returns the directory tree as a formatted string.
-    
-    Parameters:
-    """Generate a string representation of the directory tree.
-    
-    This function traverses the specified directory and constructs a visual
-    representation of its structure, including subdirectories and files.
-    
-    Parameters:
-    """Generate a string representation of the directory tree.
-    
-    This function traverses the specified directory and constructs a visual
-    representation of its structure, including subdirectories and files.
-    
+
     Parameters:
     directory_path (str): The path of the directory to traverse.
-    
+
     Returns:
     str: A formatted string representing the directory tree.
-    
+
     Exceptions:
-    OSError: If an error occurs while accessing the directory.
-    """
-    directory_path (str): The path of the directory to traverse.
-    
-    Returns:
-    str: A formatted string representing the directory tree.
-    
-    Exceptions:
-    """
-    Generate a string representation of the directory tree.
-    
-    This function traverses the specified directory and constructs a visual
-    representation of its structure, including subdirectories and files.
-    
-    Parameters:
-    directory_path (str): The path of the directory to traverse.
-    
-    Returns:
-    str: A formatted string representing the directory tree.
-    
-    Exceptions:
-    OSError: If an error occurs while accessing the directory.
-    """
-    OSError: If an error occurs while accessing the directory.
-    """
-    directory_path (str): The path of the directory to traverse.
-    
-    Returns:
-    str: A string representation of the directory tree.
-    
-    Exceptions:
-    OSError: If an error occurs while accessing the directory.
-    """
+    OSError: If an error occurs while accessing the directory."""
     """Determine programming language based on file extension."""
     # Using a simple dictionary for common extensions
     extension_map = {
         '.py': 'Python', '.ipynb': 'Python Notebook',
-    """
-    Traverse the specified directory and generate a formatted string representation of its structure.
-    
-    Parameters:
-    th (str): The path of the directory to traverse.
-    
-    Returns:
-    str: A formatted string representing the directory tree.
-    
-    Exceptions:
-    OSError: If an error occurs while accessing the directory.
-    """
         '.js': 'JavaScript', '.jsx': 'JavaScript',
         '.ts': 'TypeScript', '.tsx': 'TypeScript',
         '.html': 'HTML', '.css': 'CSS', '.scss': 'SCSS',
@@ -273,18 +217,18 @@ def handle_directory_error(directory_path: str) -> bool:
     if not directory_path:
         st.error("Directory path cannot be empty.")
         return False
-    """
-    Determines the programming language associated with a given file based on its extension.
-    
-    Parameters:
-    file_path (str): The path of the file whose language is to be identified.
-    
-    Returns:
-    str: The name of the programming language, or 'Other' if the extension is not recognized.
-    
-    Raises:
-    None
-    """
+        """
+        Determines the programming language associated with a given file based on its extension.
+
+        Parameters:
+        file_path (str): The path of the file whose language is to be identified.
+
+        Returns:
+        str: The name of the programming language, or 'Other' if the extension is not recognized.
+
+        Raises:
+        None
+        """
     if not isinstance(directory_path, str): # Basic type check
         st.error("Directory path must be a string.")
         return False
@@ -295,14 +239,14 @@ def handle_directory_error(directory_path: str) -> bool:
         if not os.path.isdir(directory_path):
             """
             Logs a message to event_log.txt in the specified directory. If the directory does not exist, it will be created.
-            
+
             Parameters:
             directory_path (str): The path to the directory where the log file will be created.
             message (str): The message to log.
-            
+
             Returns:
             None
-            
+
             Raises:
             OSError: If there is an error accessing or creating the log file.
             """
@@ -356,14 +300,14 @@ def save_synopsis(directory_path: str, content: str, filename: str) -> bool:
         return False
     if not directory_path or not handle_directory_error(directory_path):
         """Gets description (via summarization) and placeholder use case.
-        
+
         Parameters:
         file_path (str): Path to the file to be summarized.
         llm_provider (str): The provider of the language model for summarization.
-        
+
         Returns:
         Tuple[str, str]: A tuple containing the description and use case.
-        
+
         Raises:
         OSError: If there is an issue accessing the file.
         Exception: For any unexpected errors during processing.
@@ -416,19 +360,19 @@ def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
             elif "util" in basename_lower or "helper" in basename_lower:
                 use_case = "Utility/Helper Function"
             else:
-    """
-    Reads the content of a file, summarizes it, and determines its use case based on the filename.
-    
-    Parameters:
-    - file_path (str): The path to the file to be read.
-    
-    Returns:
-    - tuple: A description of the content and its use case.
-    
-    Exceptions:
-    - FileNotFoundError: Raised when the specified file does not exist.
-    - OSError: Raised for OS-related errors when accessing the file.
-    """
+                """
+                Reads the content of a file, summarizes it, and determines its use case based on the filename.
+
+                Parameters:
+                - file_path (str): The path to the file to be read.
+
+                Returns:
+                - tuple: A description of the content and its use case.
+
+                Exceptions:
+                - FileNotFoundError: Raised when the specified file does not exist.
+                - OSError: Raised for OS-related errors when accessing the file.
+                """
                 use_case = "Core Logic/Component"
         else:
             # Handle empty content case
