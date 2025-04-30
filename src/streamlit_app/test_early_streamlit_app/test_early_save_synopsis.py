@@ -5,6 +5,7 @@ import tempfile
 import shutil
 import pytest
 from unittest import mock
+from typing import cast
 
 # Import the function to test
 from streamlit_app.streamlit_app import save_synopsis
@@ -77,7 +78,8 @@ class TestSaveSynopsis:
         Test that save_synopsis returns False and warns when content is None.
         """
         with mock.patch("streamlit_app.streamlit_app.st") as mock_st:
-            result = save_synopsis(temp_dir, None, valid_filename)
+            # Cast None to str for type checker
+            result = save_synopsis(temp_dir, cast(str, None), valid_filename)
             assert result is False
             mock_st.warning.assert_called_once_with("No content provided to save.")
 
@@ -122,7 +124,8 @@ class TestSaveSynopsis:
         Test that save_synopsis returns False and errors when directory_path is None.
         """
         with mock.patch("streamlit_app.streamlit_app.st") as mock_st:
-            result = save_synopsis(None, valid_content, valid_filename)
+            # Cast None to str for type checker
+            result = save_synopsis(cast(str, None), valid_content, valid_filename)
             assert result is False
             assert any("Invalid directory path for saving" in str(call.args[0]) for call in mock_st.error.call_args_list)
 
@@ -132,7 +135,8 @@ class TestSaveSynopsis:
         Test that save_synopsis returns False and errors when directory_path is not a string.
         """
         with mock.patch("streamlit_app.streamlit_app.st") as mock_st:
-            result = save_synopsis(12345, valid_content, valid_filename)
+            # Cast 12345 to str for type checker
+            result = save_synopsis(cast(str, 12345), valid_content, valid_filename)
             assert result is False
             assert any("Invalid directory path for saving" in str(call.args[0]) for call in mock_st.error.call_args_list)
 
@@ -143,8 +147,8 @@ class TestSaveSynopsis:
         """
         # Simulate open() raising an OSError
         with mock.patch("streamlit_app.streamlit_app.st") as mock_st, \
-             mock.patch("builtins.open", side_effect=OSError("Permission denied")), \
-             mock.patch("streamlit_app.streamlit_app.log_event") as mock_log_event:
+            mock.patch("builtins.open", side_effect=OSError("Permission denied")), \
+            mock.patch("streamlit_app.streamlit_app.log_event") as mock_log_event:
             result = save_synopsis(temp_dir, valid_content, valid_filename)
             assert result is False
             assert any("Error saving synopsis file" in str(call.args[0]) for call in mock_st.error.call_args_list)

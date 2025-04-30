@@ -5,9 +5,10 @@ import tempfile
 import shutil
 import pytest
 from unittest import mock
+from typing import cast
 
 # Import the function under test
-from streamlit_app.streamlit_app import process_repo
+from streamlit_app.streamlit_app import process_repo, FileData
 
 # --- Fixtures for test setup/teardown ---
 
@@ -61,11 +62,9 @@ def mock_get_llm_response(monkeypatch):
 
 class TestProcessRepo:
     # --- Happy Path Tests ---
-
     @pytest.mark.happy_path
     def test_basic_python_and_markdown_files(
-        self, temp_repo_with_files, mock_st_error_warning, mock_get_llm_response
-    ):
+        self, temp_repo_with_files, mock_st_error_warning, mock_get_llm_response):
         """
         Test processing a repo with .py, .md, and other files, with all options enabled.
         Ensures correct language detection, token count, description, and use case.
@@ -81,25 +80,30 @@ class TestProcessRepo:
         # Should include all files except directories
         assert len(result["files"]) == len(file_paths)
         # Check languages
-        langs = set(f["language"] for f in result["files"])
+        langs = set(f.get("language") for f in result["files"])
         assert "Python" in langs
         assert "Markdown" in langs
         assert "Text" in langs
         assert "Other" in langs or "Unknown" in langs or "Makefile" in langs
 
-        # Check token_count, description, use_case for .py file
-        py_file = next(f for f in result["files"] if f["path"].endswith("main.py"))
-        assert isinstance(py_file["token_count"], int)
-        assert py_file["description"].startswith("desc:main.py")
-        assert py_file["use_case"].startswith("usecase:main.py")
+        # Check token_count, description, use_case for .py file safely
+        py_file = next((f for f in result["files"] if f.get("path", "").endswith("main.py")), None)
+        assert py_file is not None
+        assert isinstance(py_file.get("token_count"), int)
+        description = py_file.get("description")
+        use_case = py_file.get("use_case")
+        assert description and description.startswith("desc:main.py")
+        assert use_case and use_case.startswith("usecase:main.py")
 
-        # Check test file use_case
-        test_file = next(f for f in result["files"] if f["path"].endswith("test_utils.py"))
-        assert test_file["use_case"] == "usecase:test_utils.py"
+        # Check test file use_case safely
+        test_file = next((f for f in result["files"] if f.get("path", "").endswith("test_utils.py")), None)
+        assert test_file is not None
+        assert test_file.get("use_case") == "usecase:test_utils.py"
 
-        # Check Makefile language
-        makefile = next(f for f in result["files"] if f["path"].endswith("Makefile"))
-        assert makefile["language"] == "Makefile"
+        # Check Makefile language safely
+        makefile = next((f for f in result["files"] if f.get("path", "").endswith("Makefile")), None)
+        assert makefile is not None
+        assert makefile.get("language") == "Makefile"
 
     @pytest.mark.happy_path
     def test_only_token_count(self, temp_repo_with_files, mock_st_error_warning):
@@ -128,10 +132,12 @@ class TestProcessRepo:
 
         result = process_repo(repo_path, include_options, llm_provider)
         for f in result["files"]:
-            if f["language"] not in ["Unknown", "Other"]:
-                assert "description" in f
+            # Use .get() with default
+            language = f.get("language", "Unknown")
+            if language not in ["Unknown", "Other"]:
+                assert "description" in f # or assert f.get("description") is not None
             else:
-                assert "description" not in f
+                assert "description" not in f # or assert f.get("description") is None
 
     @pytest.mark.happy_path
     def test_only_use_cases(self, temp_repo_with_files, mock_st_error_warning, mock_get_llm_response):
@@ -144,10 +150,12 @@ class TestProcessRepo:
 
         result = process_repo(repo_path, include_options, llm_provider)
         for f in result["files"]:
-            if f["language"] not in ["Unknown", "Other"]:
-                assert "use_case" in f
+            # Use .get() with default
+            language = f.get("language", "Unknown")
+            if language not in ["Unknown", "Other"]:
+                assert "use_case" in f # or assert f.get("use_case") is not None
             else:
-                assert "use_case" not in f
+                assert "use_case" not in f # or assert f.get("use_case") is None
 
     @pytest.mark.happy_path
     def test_empty_directory(self, temp_empty_dir, mock_st_error_warning):
@@ -224,8 +232,10 @@ class TestProcessRepo:
         include_options = {"token_count": True, "descriptions": False, "use_cases": False}
         llm_provider = "dummy"
         result = process_repo(repo_path, include_options, llm_provider)
-        large_file_data = next(f for f in result["files"] if f["path"] == large_file)
-        assert large_file_data["token_count"] == "File too large to count tokens"
+        # Safely access file data
+        large_file_data = next((f for f in result["files"] if f.get("path") == large_file), None)
+        assert large_file_data is not None
+        assert large_file_data.get("token_count") == "File too large to count tokens"
 
     @pytest.mark.edge_case
     def test_file_not_found_during_token_count(self, temp_repo_with_files, mock_st_error_warning, monkeypatch):
@@ -246,8 +256,10 @@ class TestProcessRepo:
         include_options = {"token_count": True, "descriptions": False, "use_cases": False}
         llm_provider = "dummy"
         result = process_repo(repo_path, include_options, llm_provider)
-        file_data = next(f for f in result["files"] if f["path"] == target_file)
-        assert file_data["token_count"] == "File not found during count"
+        # Safely access file data
+        file_data = next((f for f in result["files"] if f.get("path") == target_file), None)
+        assert file_data is not None
+        assert file_data.get("token_count") == "File not found during count"
 
     @pytest.mark.edge_case
     def test_directory_path_is_empty_string(self, mock_st_error_warning):
@@ -268,7 +280,8 @@ class TestProcessRepo:
         """
         include_options = {"token_count": True, "descriptions": True, "use_cases": True}
         llm_provider = "dummy"
-        result = process_repo(12345, include_options, llm_provider)
+        # Cast 12345 to str for type checker
+        result = process_repo(cast(str, 12345), include_options, llm_provider)
         assert result["error"] is not None
         assert result["files"] == []
         assert result["languages"] is None

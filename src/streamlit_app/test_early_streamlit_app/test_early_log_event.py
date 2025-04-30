@@ -65,7 +65,7 @@ class TestLogEvent:
         """
         monkeypatch.chdir(tmp_path)
         message = "Logging with None path"
-        log_event(None, message)
+        log_event(cast(str, None), message)
         log_file = tmp_path / "event_log.txt"
         assert log_file.exists()
         content = log_file.read_text(encoding="utf-8")
@@ -113,7 +113,7 @@ class TestLogEvent:
         assert message in content
 
     @pytest.mark.edge_case
-    def test_log_event_handles_oserror_on_open(monkeypatch, tmp_path):
+    def test_log_event_handles_oserror_on_open(self, monkeypatch, tmp_path):
         """
         Test that log_event handles OSError when file cannot be opened for writing.
         """
@@ -124,6 +124,7 @@ class TestLogEvent:
         # Make the file read-only
         os.chmod(log_file, 0o444)
         captured = io.StringIO()
+        # Fix: Use monkeypatch.setattr, not self.setattr
         monkeypatch.setattr(sys, "stdout", captured)
         monkeypatch.setattr(sys, "stderr", captured)
         log_event(str(test_dir), message)
@@ -132,7 +133,7 @@ class TestLogEvent:
         assert "Error writing to log file" in output or "Permission denied" in output
 
     @pytest.mark.edge_case
-    def test_log_event_handles_unexpected_exception(monkeypatch, tmp_path):
+    def test_log_event_handles_unexpected_exception(self, monkeypatch, tmp_path):
         """
         Test that log_event handles unexpected exceptions (simulate by patching open to raise).
         """
@@ -142,6 +143,7 @@ class TestLogEvent:
             raise RuntimeError("Unexpected error!")
         monkeypatch.setattr("builtins.open", raise_exception)
         captured = io.StringIO()
+        # Fix: Use monkeypatch.setattr, not self.setattr
         monkeypatch.setattr(sys, "stdout", captured)
         monkeypatch.setattr(sys, "stderr", captured)
         log_event(str(test_dir), message)
@@ -156,7 +158,8 @@ class TestLogEvent:
         """
         test_dir = tmp_path
         message = 12345  # int, not str
-        log_event(str(test_dir), message)
+        # Cast message to str for type checker
+        log_event(str(test_dir), cast(str, message))
         log_file = test_dir / "event_log.txt"
         content = log_file.read_text(encoding="utf-8")
         assert "12345" in content
