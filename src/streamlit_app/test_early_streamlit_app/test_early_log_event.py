@@ -6,6 +6,7 @@ import shutil
 import io
 import sys
 import pytest
+from typing import cast
 
 from streamlit_app.streamlit_app import log_event
 

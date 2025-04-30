@@ -3,6 +3,7 @@
 import pytest
 import os
 from unittest import mock
+from typing import cast
 
 # Import the function under test
 from streamlit_app.streamlit_app import handle_directory_error
@@ -61,16 +62,15 @@ class TestHandleDirectoryError:
     def test_none_path_returns_false(self, patch_st_error):
         """Test that None as directory path returns False and calls st.error."""
         # Cast None to str for the type checker
-        result = handle_directory_error(cast(str, 123))
-        assert result is False
-        patch_st_error.assert_called_once_with("Directory path must be a string.")
+        result = handle_directory_error(cast(str, None))
         assert result is False
         patch_st_error.assert_called_once_with("Directory path must be a string.")
 
     @pytest.mark.edge
     def test_non_string_path_returns_false(self, patch_st_error):
         """Test that a non-string (e.g., int) as directory path returns False and calls st.error."""
-        result = handle_directory_error(123)
+        # Cast 123 to str for the type checker
+        result = handle_directory_error(cast(str, 123)) # Ensure cast is applied here
         assert result is False
         patch_st_error.assert_called_once_with("Directory path must be a string.")
 
