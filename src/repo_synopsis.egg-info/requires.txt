@@ -6,3 +6,4 @@ numpy
 pandas
 transformers>=4.49.0
 torch>=2.6.0
+pytest-mock==3.14.0

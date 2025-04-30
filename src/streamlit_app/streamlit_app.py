@@ -149,15 +149,20 @@ def generate_directory_tree(directory_path: str) -> str:
 
             norm_root = os.path.normpath(root)
             level = len(norm_root.split(os.sep)) - len_base_path
-            indent = '  ' * level
+            indent = "  " * level
 
             # Add directory entry (if not the root itself)
             if norm_root != norm_base_path:
                 tree_lines.append(f"{indent}{os.path.basename(norm_root)}/")
 
-            sub_indent = '  ' * (level + 1)
+            # Indentation for contents within the current root
+            if level == 0:
+                content_indent = "  " # Two spaces for items directly in the base directory
+            else:
+                content_indent = "  " * (level + 1) # Standard indentation for subdirectories
+
             for file in files:
-                tree_lines.append(f"{sub_indent}{file}")
+                tree_lines.append(f"{content_indent}{file}")
 
         return '\n'.join(tree_lines)
     except OSError as e:
@@ -418,7 +423,7 @@ def process_repo(
     # Use handle_directory_error for initial validation
     if not handle_directory_error(repo_path):
         repo_data["error"] = f"Invalid or inaccessible directory: {repo_path}"
-        repo_data["languages"] = None
+        repo_data["languages"] = []
         return repo_data
 
     try:
