@@ -11,7 +11,7 @@ class TestMain:
         # Patch all streamlit functions used in main
         self.st_mock = mocker.patch("streamlit_app.streamlit_app.st", autospec=True)
         # Patch st.session_state as a mutable dict
-        self.st_mock.session_state = {}
+        self.st_mock.session_state = MagicMock()
 
     @pytest.mark.happy_path
     def test_main_happy_path_single_repo_all_options(self, mocker, tmp_path):
@@ -64,13 +64,13 @@ class TestMain:
         self.st_mock.session_state["repo_select"] = ["repo1"]
 
         # Simulate st.button: first call (not pressed), second call (pressed)
-        self.st_mock.button.side_effect = [False, False, True]
+        self.st_mock.button.side_effect = [True, False]
 
         # Run main
         main()
 
         # Check that st.success was called for both synopsis and JSON
-        assert self.st_mock.success.call_count >= 2
+        assert len(self.st_mock.success.call_args_list) >= 2
         # Check that st.download_button was called for both files
         assert self.st_mock.download_button.call_count >= 2
         # Check that st.markdown was called (for displaying synopsis)

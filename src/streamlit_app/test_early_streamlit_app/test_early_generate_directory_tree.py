@@ -5,7 +5,7 @@ import tempfile
 import shutil
 import pytest
 
-from streamlit_app.streamlit_app import generate_directory_tree
+from streamlit_app.streamlit_app import generate_directory_tree, RepoData, FileData, generate_directory_tree
 
 @pytest.mark.usefixtures("setup_test_dirs")
 class TestGenerateDirectoryTree:

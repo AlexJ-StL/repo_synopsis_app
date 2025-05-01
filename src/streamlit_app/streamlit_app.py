@@ -5,7 +5,6 @@ import datetime
 from typing import Optional, List, Dict, Tuple, TypedDict, Any, Union # Added Union
 from functools import lru_cache
 from transformers import pipeline, Pipeline # Import Pipeline type hint
-# You'll need to install transformers: pip install transformers
 
 # --- Type Definitions ---
 
@@ -25,31 +24,32 @@ class RepoData(TypedDict):
 # --- Helper Functions (Define before use) ---
 
 @lru_cache(maxsize=1)
-def get_summarizer() -> Pipeline:
-    """
-    Initialize and cache the summarization pipeline using the BART model.
+def get_summarizer() -> Pipeline: generate_directory_tree
 
-    Returns:
-    Pipeline: A summarization pipeline object.
+"""
+Initialize and cache the summarization pipeline using the BART model.
 
-    Raises:
-    RuntimeError: If the pipeline initialization fails.
-    """
-    """Initialize and cache the summarization pipeline."""
-    try:
-        # Consider adding device selection based on availability (e.g., cuda if available)
-        return pipeline(
-            "summarization",
-            model="facebook/bart-large-cnn",
-            device="cpu"
-        )
-    except Exception as e:
-        # Handle potential errors during pipeline initialization
-        st.error(f"Failed to load summarization model: {e}")
-        # You might want to return a dummy function or raise an error
-        # depending on how critical summarization is.
-        # For now, let it raise, or return None and check later.
-        raise RuntimeError(f"Failed to load summarization model: {e}") from e
+Returns:
+Pipeline: A summarization pipeline object.
+
+Raises:
+RuntimeError: If the pipeline initialization fails.
+"""
+"""Initialize and cache the summarization pipeline."""
+try:
+    # Consider adding device selection based on availability (e.g., cuda if available)
+    return pipeline(
+        "summarization",
+        model="facebook/bart-large-cnn",
+        device="cpu"
+    )
+except Exception as e:
+    # Handle potential errors during pipeline initialization
+    st.error(f"Failed to load summarization model: {e}")
+    # You might want to return a dummy function or raise an error
+    # depending on how critical summarization is.
+    # For now, let it raise, or return None and check later.
+    raise RuntimeError(f"Failed to load summarization model: {e}") from e
 
 
 def summarize_text(text: str, max_length: int = 150) -> str:
@@ -134,40 +134,54 @@ def traverse_directory(directory_path: str) -> List[str]:
         return items # Return whatever was collected so far
 
 
+# c:\Users\AlexJ\Documents\Coding\Repos\my-repos\repo_synopsis_app\src\streamlit_app\streamlit_app.py
 def generate_directory_tree(directory_path: str) -> str:
     """Generate a string representation of the directory tree."""
-    try:
-        tree_lines = []
-        # Normalize base path for comparison
-        norm_base_path = os.path.normpath(directory_path)
-        len_base_path = len(norm_base_path.split(os.sep))
+    # --- Pre-check for directory validity ---
+    if not os.path.isdir(directory_path): # <--- This check fails in the test
+        # Handle non-existent paths or paths that are files
+        if not os.path.exists(directory_path): # <--- This check also likely fails
+            return f"Error generating tree: Path '{directory_path}' not found." # <--- This is the error returned
+        else:
+            return f"Error generating tree: Path '{directory_path}' is not a directory."
 
+    # Add a check for read permissions early
+    try:
+        os.listdir(directory_path)
+    except PermissionError:
+        return f"Error generating tree: Permission denied for '{directory_path}'."
+    except OSError as e:
+        return f"Error generating tree: OSError checking path - {e}"
+
+
+    tree_lines = []
+    norm_base_path = os.path.normpath(directory_path)
+    len_base_path = len(norm_base_path.split(os.sep))
+
+    try: # Wrap the walk in try/except for potential OS errors during traversal
         for root, dirs, files in os.walk(directory_path, topdown=True):
-            # Sort directories and files for consistent output
             dirs.sort()
             files.sort()
 
             norm_root = os.path.normpath(root)
             level = len(norm_root.split(os.sep)) - len_base_path
-            indent = "  " * level
+            # Indentation for items *within* this root directory (i.e., children)
+            indent = "  " * (level + 1)
 
-            # Add directory entry (if not the root itself)
-            if norm_root != norm_base_path:
-                tree_lines.append(f"{indent}{os.path.basename(norm_root)}/")
+            # Process files first, sorted
+            for f in files: # files are already sorted
+                tree_lines.append(f"{indent}{f}")
 
-            # Indentation for contents within the current root
-            if level == 0:
-                content_indent = "  " # Two spaces for items directly in the base directory
-            else:
-                content_indent = "  " * (level + 1) # Standard indentation for subdirectories
+            # Then process directories, sorted
+            for d in dirs: # dirs are already sorted
+                tree_lines.append(f"{indent}{d}/")
 
-            for file in files:
-                tree_lines.append(f"{content_indent}{file}")
-
-        return '\n'.join(tree_lines)
     except OSError as e:
-        print(f"Error generating directory tree for {directory_path}: {e}")
-        return f"Error generating tree: {e}" # Return error message
+        # This catches errors during the os.walk itself (e.g., permission denied deeper)
+        print(f"Error during directory tree generation for {directory_path}: {e}")
+        return f"Error generating tree: {e}" # Ensure prefix matches test expectation
+
+    return '\n'.join(tree_lines)
 
 
 def get_file_language(file_path: str) -> str:
