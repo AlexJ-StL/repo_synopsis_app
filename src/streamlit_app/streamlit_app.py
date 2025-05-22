@@ -24,32 +24,32 @@ class RepoData(TypedDict):
 # --- Helper Functions (Define before use) ---
 
 @lru_cache(maxsize=1)
-def get_summarizer() -> Pipeline: generate_directory_tree
+def get_summarizer() -> Pipeline:
 
-"""
-Initialize and cache the summarization pipeline using the BART model.
+    """
+    Initialize and cache the summarization pipeline using the BART model.
 
-Returns:
-Pipeline: A summarization pipeline object.
+    Returns:
+    Pipeline: A summarization pipeline object.
 
-Raises:
-RuntimeError: If the pipeline initialization fails.
-"""
-"""Initialize and cache the summarization pipeline."""
-try:
-    # Consider adding device selection based on availability (e.g., cuda if available)
-    return pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn",
-        device="cpu"
-    )
-except Exception as e:
-    # Handle potential errors during pipeline initialization
-    st.error(f"Failed to load summarization model: {e}")
-    # You might want to return a dummy function or raise an error
-    # depending on how critical summarization is.
-    # For now, let it raise, or return None and check later.
-    raise RuntimeError(f"Failed to load summarization model: {e}") from e
+    Raises:
+    RuntimeError: If the pipeline initialization fails.
+    """
+    """Initialize and cache the summarization pipeline."""
+    try:
+        # Consider adding device selection based on availability (e.g., cuda if available)
+        return pipeline(
+            "summarization",
+            model="facebook/bart-large-cnn",
+            device="cpu"
+        )
+    except Exception as e:
+        # Handle potential errors during pipeline initialization
+        st.error(f"Failed to load summarization model: {e}")
+        # You might want to return a dummy function or raise an error
+        # depending on how critical summarization is.
+        # For now, let it raise, or return None and check later.
+        raise RuntimeError(f"Failed to load summarization model: {e}") from e
 
 
 def summarize_text(text: str, max_length: int = 150) -> str:
