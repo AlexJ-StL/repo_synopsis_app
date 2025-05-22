@@ -23,11 +23,10 @@ class RepoData(TypedDict):
 
 # --- Helper Functions (Define before use) ---
 
-@lru_cache(maxsize=1)
-def get_summarizer() -> Pipeline: generate_directory_tree
-
-"""
-Initialize and cache the summarization pipeline using the BART model.
+@lru_cache(maxsize=5) # Increased cache size for multiple models
+def get_summarizer(model_name: str = "facebook/bart-large-cnn") -> Pipeline: # Added model_name argument
+    """
+Initialize and cache the summarization pipeline using the specified model.
 
 Returns:
 Pipeline: A summarization pipeline object.
@@ -35,15 +34,15 @@ Pipeline: A summarization pipeline object.
 Raises:
 RuntimeError: If the pipeline initialization fails.
 """
-"""Initialize and cache the summarization pipeline."""
-try:
-    # Consider adding device selection based on availability (e.g., cuda if available)
-    return pipeline(
-        "summarization",
-        model="facebook/bart-large-cnn",
-        device="cpu"
-    )
-except Exception as e:
+    """Initialize and cache the summarization pipeline."""
+    try:
+        # Consider adding device selection based on availability (e.g., cuda if available)
+        return pipeline(
+            "summarization",
+            model=model_name, # Use the model_name argument
+            device="cpu"
+        )
+    except Exception as e:
     # Handle potential errors during pipeline initialization
     st.error(f"Failed to load summarization model: {e}")
     # You might want to return a dummy function or raise an error
@@ -52,7 +51,7 @@ except Exception as e:
     raise RuntimeError(f"Failed to load summarization model: {e}") from e
 
 
-def summarize_text(text: str, max_length: int = 150) -> str:
+def summarize_text(text: str, model_name: str, max_length: int = 150) -> str: # Added model_name argument
     """Summarizes text using a pre-trained summarization model."""
     if not text:
         return ""
@@ -67,7 +66,7 @@ def summarize_text(text: str, max_length: int = 150) -> str:
     min_length = max(10, max_length // 3)
 
     try:
-        summarizer = get_summarizer()
+        summarizer = get_summarizer(model_name=model_name) # Pass model_name
         if summarizer is None: # Check if pipeline loaded
             return ""
 
@@ -349,10 +348,13 @@ def save_synopsis(directory_path: str, content: str, filename: str) -> bool:
 
 
 # ... inside get_llm_response function ...
-def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
+def get_llm_response(file_path: str, llm_provider: str, summarizer_model_name: str) -> Tuple[str, str]: # Added summarizer_model_name
     """Gets description (via summarization) and placeholder use case."""
     description = "" # Initialize description
     use_case = "N/A" # Initialize use_case
+
+    # --- Optional: Print selected LLM provider for verification ---
+    # print(f"Selected LLM Provider in get_llm_response: {llm_provider}") # Commented out
 
     try:
         # Check file size first to avoid reading huge files
@@ -369,8 +371,22 @@ def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
 
         # Process content only if it exists
         if content:
-            # Summarize text
-            description = summarize_text(content) # Use content here
+            # --- LLM Provider specific logic ---
+            if llm_provider == "Groq":
+                print(f"Using Groq provider with {summarizer_model_name} for: {file_path}")
+                description = summarize_text(content, model_name=summarizer_model_name)
+            elif llm_provider == "Cerberas":
+                print(f"Cerberas provider selected for: {file_path}. Using {summarizer_model_name} as placeholder.")
+                description = summarize_text(content, model_name=summarizer_model_name)
+            elif llm_provider == "SombaNova":
+                print(f"SombaNova provider selected for: {file_path}. Using {summarizer_model_name} as placeholder.")
+                description = summarize_text(content, model_name=summarizer_model_name)
+            elif llm_provider == "Gemini":
+                print(f"Gemini provider selected for: {file_path}. Using {summarizer_model_name} as placeholder.")
+                description = summarize_text(content, model_name=summarizer_model_name)
+            else:
+                print(f"Unknown or unsupported LLM provider: {llm_provider}. Using {summarizer_model_name} for: {file_path}")
+                description = summarize_text(content, model_name=summarizer_model_name)
 
             # Determine use case based on filename (basename only)
             basename_lower = os.path.basename(file_path).lower()
@@ -425,7 +441,8 @@ def get_llm_response(file_path: str, llm_provider: str) -> Tuple[str, str]:
 def process_repo(
     repo_path: str,
     include_options: Dict[str, bool],
-    llm_provider: str
+    llm_provider: str,
+    summarizer_model_name: str # Added summarizer_model_name
 ) -> RepoData:
     """Processes a repository path to extract file information."""
     repo_data: RepoData = {
@@ -474,7 +491,7 @@ def process_repo(
                 # --- Descriptions and Use Cases ---
                 needs_llm = include_options.get("descriptions") or include_options.get("use_cases")
                 if needs_llm and language not in ['Unknown', 'Other']: # Avoid LLM for unknown types
-                    description, use_case = get_llm_response(item_path, llm_provider)
+                    description, use_case = get_llm_response(item_path, llm_provider, summarizer_model_name) # Pass summarizer_model_name
                     if include_options.get("descriptions"):
                         file_data["description"] = description
                     if include_options.get("use_cases"):
@@ -556,9 +573,15 @@ def main():
     include_use_cases = st.sidebar.checkbox("Include Use Cases (Placeholder)", value=True, key="inc_use")
     llm_provider = st.sidebar.selectbox(
         "LLM Provider (Placeholder)",
-        ("Groq", "Other"), # Simplified
+        ("Groq", "Cerberas", "SombaNova", "Gemini"), # Simplified
         key="llm_select",
         help="LLM selection currently affects summarization only."
+    )
+    summarizer_model_name = st.sidebar.text_input(
+        "Summarization Model:",
+        value="facebook/bart-large-cnn",
+        key="summarizer_model_name",
+        help="Specify the Hugging Face model name for summarization (e.g., 'facebook/bart-large-cnn')."
     )
 
     # --- Repository Selection Area ---
@@ -638,7 +661,7 @@ def main():
             repo_name = os.path.basename(repo_path)
             status_text.text(f"Processing: {repo_name} ({i+1}/{len(selected_full_paths)})...")
 
-            result_data = process_repo(repo_path, include_options, llm_provider)
+            result_data = process_repo(repo_path, include_options, llm_provider, summarizer_model_name) # Pass summarizer_model_name
             all_repo_data[repo_path] = result_data # Store raw data
 
             if result_data.get("error"):
